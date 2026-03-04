@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Clefrun Score Renderer</title>
+  <script src="https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@1.9.2/build/opensheetmusicdisplay.min.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f3efe2;
+      --panel: #fffdf8;
+      --ink: #1f1b16;
+      --line: #d8d0bb;
+      --error: #9f2d20;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, rgba(190, 165, 108, 0.22), transparent 32%),
+        linear-gradient(180deg, #faf6ea 0%, var(--page) 100%);
+      color: var(--ink);
+      font-family: Georgia, "Times New Roman", serif;
+    }
+
+    .shell {
+      min-height: 100vh;
+      padding: 16px;
+    }
+
+    .panel {
+      min-height: calc(100vh - 32px);
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255, 253, 248, 0.94);
+      box-shadow: 0 18px 50px rgba(68, 49, 20, 0.10);
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    p {
+      margin: 0 0 16px;
+      color: #5c5244;
+      line-height: 1.4;
+    }
+
+    #status {
+      min-height: 24px;
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
+
+    #status.error {
+      color: var(--error);
+      font-weight: 600;
+    }
+
+    #score {
+      width: 100%;
+      overflow-x: auto;
+      overflow-y: hidden;
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="panel">
+      <h1>OSMD Test Renderer</h1>
+      <p>Tap the Android button to load the hardcoded MusicXML sample into this WebView.</p>
+      <div id="status">Waiting for MusicXML input.</div>
+      <div id="score"></div>
+    </div>
+  </div>
+  <script>
+    const scoreContainer = document.getElementById("score");
+    const statusNode = document.getElementById("status");
+    let osmd = null;
+
+    function setStatus(message, isError) {
+      statusNode.textContent = message;
+      statusNode.className = isError ? "error" : "";
+    }
+
+    window.renderMusicXml = async function renderMusicXml(xmlString) {
+      try {
+        if (!window.opensheetmusicdisplay || !window.opensheetmusicdisplay.OpenSheetMusicDisplay) {
+          throw new Error("OpenSheetMusicDisplay failed to load. Check network access for the CDN script.");
+        }
+
+        if (!osmd) {
+          osmd = new window.opensheetmusicdisplay.OpenSheetMusicDisplay(scoreContainer, {
+            autoResize: true,
+            drawingParameters: "compacttight"
+          });
+        }
+
+        setStatus("Rendering score...", false);
+        await osmd.load(xmlString);
+        osmd.render();
+        setStatus("Rendered 4-bar test score.", false);
+      } catch (error) {
+        console.error(error);
+        setStatus(error && error.message ? error.message : "Unknown rendering error.", true);
+      }
+    };
+  </script>
+</body>
+</html>
