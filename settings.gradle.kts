@@ -24,4 +24,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Clefrun"
 include(":app")
- 
+include(":core")
