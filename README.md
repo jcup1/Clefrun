@@ -23,4 +23,4 @@ This milestone proves that Android Compose can host a `WebView`, load `app/src/m
 
 ### Current limitation
 
-`score.html` loads OpenSheetMusicDisplay from a CDN, so the device or emulator needs network access for this milestone.
+`score.html` loads OpenSheetMusicDisplay from a CDN (SRI-pinned), so the device or emulator needs network access for this milestone.

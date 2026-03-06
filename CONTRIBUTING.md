@@ -1,4 +1,4 @@
-# Contributing to ClefRun
+# Contributing to Clefrun
 
 This repo uses **feature branches** + **Conventional Commits** to keep work reviewable and history clean.
 

@@ -1,7 +1,9 @@
 package com.clefrun.app
 
 import android.annotation.SuppressLint
+import android.net.Uri
 import android.os.Bundle
+import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
@@ -73,7 +75,21 @@ private fun ScoreWebView(modifier: Modifier = Modifier) {
         WebView(context).apply {
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
+            settings.allowFileAccessFromFileURLs = false
+            settings.allowUniversalAccessFromFileURLs = false
             webViewClient = object : WebViewClient() {
+                override fun shouldOverrideUrlLoading(
+                    view: WebView?,
+                    request: WebResourceRequest?
+                ): Boolean {
+                    return !isAllowedNavigation(request?.url)
+                }
+
+                @Deprecated("Deprecated in Java")
+                override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
+                    return !isAllowedNavigation(url?.let(Uri::parse))
+                }
+
                 override fun onPageFinished(view: WebView?, url: String?) {
                     pageLoaded = true
                     if (pendingRender) {
@@ -135,10 +151,18 @@ private fun renderMusicXml(webView: WebView) {
     webView.evaluateJavascript(javascript, null)
 }
 
-private const val SCORE_HTML_ASSET_URL = "file:///android_asset/score.html"
+private fun isAllowedNavigation(uri: Uri?): Boolean {
+    if (uri == null) return false
+    val isAsset = uri.toString() == SCORE_HTML_ASSET_URL
+    val isAllowedCdn = uri.scheme == "https" && uri.host == ALLOWED_CDN_HOST
+    val isAboutBlank = uri.toString() == "about:blank"
+    return isAsset || isAllowedCdn || isAboutBlank
+}
 
-private const val TEST_GRAND_STAFF_MUSIC_XML = """
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+private const val SCORE_HTML_ASSET_URL = "file:///android_asset/score.html"
+private const val ALLOWED_CDN_HOST = "cdn.jsdelivr.net"
+
+private const val TEST_GRAND_STAFF_MUSIC_XML = """<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE score-partwise PUBLIC
     "-//Recordare//DTD MusicXML 3.1 Partwise//EN"
     "http://www.musicxml.org/dtds/partwise.dtd">
@@ -382,8 +406,7 @@ private const val TEST_GRAND_STAFF_MUSIC_XML = """
       </barline>
     </measure>
   </part>
-</score-partwise>
-"""
+</score-partwise>"""
 
 @Preview(showBackground = true)
 @Composable
