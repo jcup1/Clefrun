@@ -7,9 +7,24 @@
 /.idea/workspace.xml
 /.idea/navEditor.xml
 /.idea/assetWizardSettings.xml
+/.idea/AndroidProjectSystem.xml
+/.idea/compiler.xml
+/.idea/copilot.data.migration.ask2agent.xml
+/.idea/deploymentTargetSelector.xml
+/.idea/gradle.xml
+/.idea/inspectionProfiles/
+/.idea/kotlinc.xml
+/.idea/markdown.xml
+/.idea/misc.xml
+/.idea/runConfigurations.xml
+/.idea/vcs.xml
 .DS_Store
 /build
 /captures
 .externalNativeBuild
 .cxx
 local.properties
+
+# Local AI agent instructions and skills
+AGENTS.md
+.agents/
