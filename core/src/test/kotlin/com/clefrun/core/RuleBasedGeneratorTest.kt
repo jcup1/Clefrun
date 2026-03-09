@@ -1,5 +1,6 @@
 package com.clefrun.core
 
+import kotlin.math.abs
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -24,23 +25,33 @@ class RuleBasedGeneratorTest {
     }
 
     @Test
-    fun rightHandBeats1And3AreChordTones() {
-        val seeds = listOf(3L, 8L, 21L, 55L)
+    fun accidentalRhNotesResolveBySemitoneIntoChordTone() {
+        val seeds = (1L..150L).toList()
         seeds.forEach { seed ->
             val exercise = RuleBasedGenerator.generate(seed)
             exercise.bars.forEach { bar ->
-                val beat1 = bar.rightHand.firstOrNull { it.beatStart == 1 && !it.isRest }
-                val beat3 = bar.rightHand.firstOrNull { it.beatStart == 3 && !it.isRest }
-                assertTrue("Missing RH note on beat 1 for bar ${bar.number}", beat1 != null)
-                assertTrue("Missing RH note on beat 3 for bar ${bar.number}", beat3 != null)
-                assertTrue(isChordTone(beat1!!, bar.chord))
-                assertTrue(isChordTone(beat3!!, bar.chord))
+                bar.rightHand.forEachIndexed { index, note ->
+                    val pitch = note.pitch ?: return@forEachIndexed
+                    if (pitch.alter == 0) return@forEachIndexed
+
+                    assertTrue(
+                        "Accidental note must not be last in bar (seed=$seed, bar=${bar.number})",
+                        index + 1 < bar.rightHand.size
+                    )
+                    val next = bar.rightHand[index + 1]
+                    val nextPitch = next.pitch
+                    assertTrue("Resolution target must be pitched note", nextPitch != null)
+
+                    val semitone = abs(toMidi(pitch) - toMidi(nextPitch!!))
+                    assertEquals("Accidental note must resolve by 1 semitone", 1, semitone)
+                    assertTrue("Resolution note must be chord tone", isChordTone(nextPitch, bar.chord))
+                }
             }
         }
     }
 
-    private fun isChordTone(note: NoteEvent, chord: ChordFunction): Boolean {
-        val pitchClass = stepToPitchClass(note.step ?: return false)
+    private fun isChordTone(pitch: Pitch, chord: ChordFunction): Boolean {
+        val pitchClass = ((stepToPitchClass(pitch.step) + pitch.alter) % 12 + 12) % 12
         val tones = when (chord) {
             ChordFunction.I -> setOf(0, 4, 7)
             ChordFunction.IV -> setOf(5, 9, 0)
@@ -50,16 +61,20 @@ class RuleBasedGeneratorTest {
         return pitchClass in tones
     }
 
-    private fun stepToPitchClass(step: String): Int {
+    private fun toMidi(pitch: Pitch): Int {
+        val base = (pitch.octave + 1) * 12
+        return base + stepToPitchClass(pitch.step) + pitch.alter
+    }
+
+    private fun stepToPitchClass(step: Step): Int {
         return when (step) {
-            "C" -> 0
-            "D" -> 2
-            "E" -> 4
-            "F" -> 5
-            "G" -> 7
-            "A" -> 9
-            "B" -> 11
-            else -> error("Unexpected step $step")
+            Step.C -> 0
+            Step.D -> 2
+            Step.E -> 4
+            Step.F -> 5
+            Step.G -> 7
+            Step.A -> 9
+            Step.B -> 11
         }
     }
 }

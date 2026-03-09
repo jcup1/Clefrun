@@ -15,8 +15,7 @@ data class Bar(
 )
 
 data class NoteEvent(
-    val step: String?,
-    val octave: Int?,
+    val pitch: Pitch?,
     val duration: Duration,
     val staff: Int,
     val voice: Int,
@@ -25,8 +24,7 @@ data class NoteEvent(
 ) {
     init {
         if (!isRest) {
-            require(step != null) { "Non-rest NoteEvent must define step." }
-            require(octave != null) { "Non-rest NoteEvent must define octave." }
+            require(pitch != null) { "Non-rest NoteEvent must define pitch." }
         }
     }
 }
@@ -42,4 +40,24 @@ enum class ChordFunction {
     IV,
     V,
     VI
+}
+
+enum class Step {
+    C,
+    D,
+    E,
+    F,
+    G,
+    A,
+    B
+}
+
+data class Pitch(
+    val step: Step,
+    val alter: Int,
+    val octave: Int
+) {
+    init {
+        require(alter in -1..1) { "Pitch alter must be -1, 0, or 1." }
+    }
 }
