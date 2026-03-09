@@ -1,8 +1,8 @@
 # Clefrun
 
-## Milestone 1 smoke test
+## Milestone 3 smoke test
 
-This milestone proves that Android Compose can host a `WebView`, load `app/src/main/assets/score.html`, and render a hardcoded 4-bar grand staff MusicXML example through OpenSheetMusicDisplay.
+This milestone generates a beginner 4-bar grand staff exercise in `:core`, converts it to MusicXML, and renders it through the existing Android WebView + OpenSheetMusicDisplay pipeline.
 
 ### Run
 
@@ -13,13 +13,13 @@ This milestone proves that Android Compose can host a `WebView`, load `app/src/m
 
 1. Launch the app.
 2. Wait for the `WebView OSMD Render Test` screen to appear.
-3. Tap `Render test score`.
+3. Tap `New exercise`.
 
 ### Expected result
 
 - A grand staff with treble and bass clefs appears inside the embedded WebView.
-- The score shows a 4-bar C major, 4/4 example with simple RH and LH material.
-- Tapping `Render test score` again re-renders without crashing.
+- The score is a generated 4-bar C major, 4/4 beginner exercise with RH melody and LH accompaniment.
+- Tapping `New exercise` again generates and re-renders another deterministic seeded exercise without crashing.
 
 ### Current limitation
 
