@@ -2,282 +2,77 @@ package com.clefrun.core
 
 object MusicXmlWriter {
     fun write(exercise: Exercise): String {
-        // Milestone 2 keeps output fixed to the known smoke-test XML.
-        return TEST_EXERCISE_XML
+        val xml = StringBuilder()
+        xml.append("""<?xml version="1.0" encoding="UTF-8" standalone="no"?>""").append('\n')
+        xml.append("<score-partwise version=\"3.1\">").append('\n')
+        xml.append("  <part-list>").append('\n')
+        xml.append("    <score-part id=\"P1\">").append('\n')
+        xml.append("      <part-name>Piano</part-name>").append('\n')
+        xml.append("    </score-part>").append('\n')
+        xml.append("  </part-list>").append('\n')
+        xml.append("  <part id=\"P1\">").append('\n')
+
+        exercise.bars.forEachIndexed { index, bar ->
+            xml.append("    <measure number=\"${bar.number}\">").append('\n')
+
+            if (index == 0) {
+                xml.append("      <attributes>").append('\n')
+                xml.append("        <divisions>1</divisions>").append('\n')
+                xml.append("        <key>").append('\n')
+                xml.append("          <fifths>${exercise.keyFifths}</fifths>").append('\n')
+                xml.append("        </key>").append('\n')
+                xml.append("        <time>").append('\n')
+                xml.append("          <beats>${exercise.beats}</beats>").append('\n')
+                xml.append("          <beat-type>${exercise.beatType}</beat-type>").append('\n')
+                xml.append("        </time>").append('\n')
+                xml.append("        <staves>2</staves>").append('\n')
+                xml.append("        <clef number=\"1\">").append('\n')
+                xml.append("          <sign>G</sign>").append('\n')
+                xml.append("          <line>2</line>").append('\n')
+                xml.append("        </clef>").append('\n')
+                xml.append("        <clef number=\"2\">").append('\n')
+                xml.append("          <sign>F</sign>").append('\n')
+                xml.append("          <line>4</line>").append('\n')
+                xml.append("        </clef>").append('\n')
+                xml.append("      </attributes>").append('\n')
+            }
+
+            bar.rightHand.forEach { note -> appendNote(xml, note) }
+            xml.append("      <backup>").append('\n')
+            xml.append("        <duration>${exercise.beats}</duration>").append('\n')
+            xml.append("      </backup>").append('\n')
+            bar.leftHand.forEach { note -> appendNote(xml, note) }
+
+            if (index == exercise.bars.lastIndex) {
+                xml.append("      <barline location=\"right\">").append('\n')
+                xml.append("        <bar-style>light-heavy</bar-style>").append('\n')
+                xml.append("      </barline>").append('\n')
+            }
+
+            xml.append("    </measure>").append('\n')
+        }
+
+        xml.append("  </part>").append('\n')
+        xml.append("</score-partwise>")
+        return xml.toString()
     }
 
-    fun writeTestExercise(): String {
-        return write(
-            exercise = Exercise(
-                bars = listOf(
-                    Bar(
-                        number = 1,
-                        rightHand = emptyList(),
-                        leftHand = emptyList()
-                    ),
-                    Bar(
-                        number = 2,
-                        rightHand = emptyList(),
-                        leftHand = emptyList()
-                    ),
-                    Bar(
-                        number = 3,
-                        rightHand = emptyList(),
-                        leftHand = emptyList()
-                    ),
-                    Bar(
-                        number = 4,
-                        rightHand = emptyList(),
-                        leftHand = emptyList()
-                    )
-                )
-            )
-        )
+    private fun appendNote(xml: StringBuilder, note: NoteEvent) {
+        xml.append("      <note>").append('\n')
+        if (note.isRest) {
+            xml.append("        <rest/>").append('\n')
+        } else {
+            val step = requireNotNull(note.step) { "Non-rest note must include step." }
+            val octave = requireNotNull(note.octave) { "Non-rest note must include octave." }
+            xml.append("        <pitch>").append('\n')
+            xml.append("          <step>$step</step>").append('\n')
+            xml.append("          <octave>$octave</octave>").append('\n')
+            xml.append("        </pitch>").append('\n')
+        }
+        xml.append("        <duration>${note.duration.beats}</duration>").append('\n')
+        xml.append("        <type>${note.duration.musicXmlType}</type>").append('\n')
+        xml.append("        <voice>${note.voice}</voice>").append('\n')
+        xml.append("        <staff>${note.staff}</staff>").append('\n')
+        xml.append("      </note>").append('\n')
     }
 }
-
-private const val TEST_EXERCISE_XML = """<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!DOCTYPE score-partwise PUBLIC
-    "-//Recordare//DTD MusicXML 3.1 Partwise//EN"
-    "http://www.musicxml.org/dtds/partwise.dtd">
-<score-partwise version="3.1">
-  <part-list>
-    <score-part id="P1">
-      <part-name>Piano</part-name>
-    </score-part>
-  </part-list>
-  <part id="P1">
-    <measure number="1">
-      <attributes>
-        <divisions>1</divisions>
-        <key>
-          <fifths>0</fifths>
-        </key>
-        <time>
-          <beats>4</beats>
-          <beat-type>4</beat-type>
-        </time>
-        <staves>2</staves>
-        <clef number="1">
-          <sign>G</sign>
-          <line>2</line>
-        </clef>
-        <clef number="2">
-          <sign>F</sign>
-          <line>4</line>
-        </clef>
-      </attributes>
-      <note>
-        <pitch>
-          <step>C</step>
-          <octave>5</octave>
-        </pitch>
-        <duration>1</duration>
-        <type>quarter</type>
-        <voice>1</voice>
-        <staff>1</staff>
-      </note>
-      <note>
-        <pitch>
-          <step>D</step>
-          <octave>5</octave>
-        </pitch>
-        <duration>1</duration>
-        <type>quarter</type>
-        <voice>1</voice>
-        <staff>1</staff>
-      </note>
-      <note>
-        <pitch>
-          <step>E</step>
-          <octave>5</octave>
-        </pitch>
-        <duration>1</duration>
-        <type>quarter</type>
-        <voice>1</voice>
-        <staff>1</staff>
-      </note>
-      <note>
-        <pitch>
-          <step>G</step>
-          <octave>5</octave>
-        </pitch>
-        <duration>1</duration>
-        <type>quarter</type>
-        <voice>1</voice>
-        <staff>1</staff>
-      </note>
-      <backup>
-        <duration>4</duration>
-      </backup>
-      <note>
-        <pitch>
-          <step>C</step>
-          <octave>3</octave>
-        </pitch>
-        <duration>2</duration>
-        <type>half</type>
-        <voice>2</voice>
-        <staff>2</staff>
-      </note>
-      <note>
-        <pitch>
-          <step>G</step>
-          <octave>2</octave>
-        </pitch>
-        <duration>2</duration>
-        <type>half</type>
-        <voice>2</voice>
-        <staff>2</staff>
-      </note>
-    </measure>
-    <measure number="2">
-      <note>
-        <pitch>
-          <step>E</step>
-          <octave>5</octave>
-        </pitch>
-        <duration>1</duration>
-        <type>quarter</type>
-        <voice>1</voice>
-        <staff>1</staff>
-      </note>
-      <note>
-        <pitch>
-          <step>F</step>
-          <octave>5</octave>
-        </pitch>
-        <duration>1</duration>
-        <type>quarter</type>
-        <voice>1</voice>
-        <staff>1</staff>
-      </note>
-      <note>
-        <pitch>
-          <step>G</step>
-          <octave>5</octave>
-        </pitch>
-        <duration>1</duration>
-        <type>quarter</type>
-        <voice>1</voice>
-        <staff>1</staff>
-      </note>
-      <note>
-        <pitch>
-          <step>E</step>
-          <octave>5</octave>
-        </pitch>
-        <duration>1</duration>
-        <type>quarter</type>
-        <voice>1</voice>
-        <staff>1</staff>
-      </note>
-      <backup>
-        <duration>4</duration>
-      </backup>
-      <note>
-        <pitch>
-          <step>F</step>
-          <octave>2</octave>
-        </pitch>
-        <duration>4</duration>
-        <type>whole</type>
-        <voice>2</voice>
-        <staff>2</staff>
-      </note>
-    </measure>
-    <measure number="3">
-      <note>
-        <pitch>
-          <step>G</step>
-          <octave>5</octave>
-        </pitch>
-        <duration>1</duration>
-        <type>quarter</type>
-        <voice>1</voice>
-        <staff>1</staff>
-      </note>
-      <note>
-        <pitch>
-          <step>E</step>
-          <octave>5</octave>
-        </pitch>
-        <duration>1</duration>
-        <type>quarter</type>
-        <voice>1</voice>
-        <staff>1</staff>
-      </note>
-      <note>
-        <pitch>
-          <step>D</step>
-          <octave>5</octave>
-        </pitch>
-        <duration>1</duration>
-        <type>quarter</type>
-        <voice>1</voice>
-        <staff>1</staff>
-      </note>
-      <note>
-        <pitch>
-          <step>C</step>
-          <octave>5</octave>
-        </pitch>
-        <duration>1</duration>
-        <type>quarter</type>
-        <voice>1</voice>
-        <staff>1</staff>
-      </note>
-      <backup>
-        <duration>4</duration>
-      </backup>
-      <note>
-        <pitch>
-          <step>G</step>
-          <octave>2</octave>
-        </pitch>
-        <duration>2</duration>
-        <type>half</type>
-        <voice>2</voice>
-        <staff>2</staff>
-      </note>
-      <note>
-        <pitch>
-          <step>C</step>
-          <octave>3</octave>
-        </pitch>
-        <duration>2</duration>
-        <type>half</type>
-        <voice>2</voice>
-        <staff>2</staff>
-      </note>
-    </measure>
-    <measure number="4">
-      <note>
-        <pitch>
-          <step>C</step>
-          <octave>5</octave>
-        </pitch>
-        <duration>4</duration>
-        <type>whole</type>
-        <voice>1</voice>
-        <staff>1</staff>
-      </note>
-      <backup>
-        <duration>4</duration>
-      </backup>
-      <note>
-        <pitch>
-          <step>C</step>
-          <octave>3</octave>
-        </pitch>
-        <duration>4</duration>
-        <type>whole</type>
-        <voice>2</voice>
-        <staff>2</staff>
-      </note>
-      <barline location="right">
-        <bar-style>light-heavy</bar-style>
-      </barline>
-    </measure>
-  </part>
-</score-partwise>"""

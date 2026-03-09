@@ -22,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -31,6 +32,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.clefrun.app.ui.theme.ClefrunTheme
 import com.clefrun.core.MusicXmlWriter
+import com.clefrun.core.RuleBasedGenerator
 import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
@@ -69,8 +71,9 @@ fun ScoreRenderScreen(modifier: Modifier = Modifier) {
 private fun ScoreWebView(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     var pageLoaded by remember { mutableStateOf(false) }
-    var pendingRender by remember { mutableStateOf(false) }
+    var pendingXml by remember { mutableStateOf<String?>(null) }
     var renderRequests by remember { mutableIntStateOf(0) }
+    var seedCounter by remember { mutableLongStateOf(1L) }
 
     val webView = remember(context) {
         WebView(context).apply {
@@ -91,9 +94,9 @@ private fun ScoreWebView(modifier: Modifier = Modifier) {
 
                 override fun onPageFinished(view: WebView?, url: String?) {
                     pageLoaded = true
-                    if (pendingRender) {
-                        pendingRender = false
-                        renderMusicXml(this@apply)
+                    pendingXml?.let { xml ->
+                        pendingXml = null
+                        renderMusicXml(this@apply, xml)
                     }
                 }
             }
@@ -113,15 +116,18 @@ private fun ScoreWebView(modifier: Modifier = Modifier) {
     ) {
         Button(
             onClick = {
+                val exercise = RuleBasedGenerator.generate(seedCounter)
+                val xml = MusicXmlWriter.write(exercise)
+                seedCounter += 1
                 renderRequests += 1
                 if (pageLoaded) {
-                    renderMusicXml(webView)
+                    renderMusicXml(webView, xml)
                 } else {
-                    pendingRender = true
+                    pendingXml = xml
                 }
             }
         ) {
-            Text("Render test score")
+            Text("New exercise")
         }
 
         AndroidWebView(
@@ -132,7 +138,7 @@ private fun ScoreWebView(modifier: Modifier = Modifier) {
         )
 
         if (renderRequests == 0) {
-            Text(text = "Tap the button to render the hardcoded MusicXML grand staff example.")
+            Text(text = "Tap the button to generate and render a beginner exercise.")
         }
     }
 }
@@ -145,8 +151,8 @@ private fun AndroidWebView(webView: WebView, modifier: Modifier = Modifier) {
     )
 }
 
-private fun renderMusicXml(webView: WebView) {
-    val javascript = "window.renderMusicXml(${JSONObject.quote(MusicXmlWriter.writeTestExercise())});"
+private fun renderMusicXml(webView: WebView, xmlString: String) {
+    val javascript = "window.renderMusicXml(${JSONObject.quote(xmlString)});"
     webView.evaluateJavascript(javascript, null)
 }
 
