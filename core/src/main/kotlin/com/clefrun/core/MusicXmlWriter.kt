@@ -62,9 +62,11 @@ object MusicXmlWriter {
         if (note.isRest) {
             xml.append("        <rest/>").append('\n')
         } else {
+            val step = requireNotNull(note.step) { "Non-rest note must include step." }
+            val octave = requireNotNull(note.octave) { "Non-rest note must include octave." }
             xml.append("        <pitch>").append('\n')
-            xml.append("          <step>${note.step}</step>").append('\n')
-            xml.append("          <octave>${note.octave}</octave>").append('\n')
+            xml.append("          <step>$step</step>").append('\n')
+            xml.append("          <octave>$octave</octave>").append('\n')
             xml.append("        </pitch>").append('\n')
         }
         xml.append("        <duration>${note.duration.beats}</duration>").append('\n')

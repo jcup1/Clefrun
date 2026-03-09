@@ -22,7 +22,14 @@ data class NoteEvent(
     val voice: Int,
     val beatStart: Int,
     val isRest: Boolean = false
-)
+) {
+    init {
+        if (!isRest) {
+            require(step != null) { "Non-rest NoteEvent must define step." }
+            require(octave != null) { "Non-rest NoteEvent must define octave." }
+        }
+    }
+}
 
 enum class Duration(val beats: Int, val musicXmlType: String) {
     QUARTER(1, "quarter"),

@@ -185,18 +185,13 @@ private fun noteFromMidi(
 private fun midiToStepOctave(midi: Int): Pair<String, Int> {
     val step = when (pitchClass(midi)) {
         0 -> "C"
-        1 -> "C"
         2 -> "D"
-        3 -> "D"
         4 -> "E"
         5 -> "F"
-        6 -> "F"
         7 -> "G"
-        8 -> "G"
         9 -> "A"
-        10 -> "A"
         11 -> "B"
-        else -> error("Unexpected pitch class")
+        else -> error("Accidental pitch class ${pitchClass(midi)} is not supported in M3 writer.")
     }
     val octave = (midi / 12) - 1
     return step to octave
