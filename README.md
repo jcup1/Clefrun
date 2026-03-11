@@ -1,8 +1,8 @@
 # Clefrun
 
-## Milestone 3 smoke test
+## Milestone 4 smoke test
 
-This milestone generates a beginner 4-bar grand staff exercise in `:core`, converts it to MusicXML, and renders it through the existing Android WebView + OpenSheetMusicDisplay pipeline.
+This milestone keeps C major (fifths=0) and adds occasional RH chromatic approach tones (accidentals) that resolve into chord tones, then renders generated MusicXML through the existing Android WebView + OpenSheetMusicDisplay pipeline.
 
 ### Run
 
@@ -18,7 +18,7 @@ This milestone generates a beginner 4-bar grand staff exercise in `:core`, conve
 ### Expected result
 
 - A grand staff with treble and bass clefs appears inside the embedded WebView.
-- The score is a generated 4-bar C major, 4/4 beginner exercise with RH melody and LH accompaniment.
+- The score is a generated 4-bar C major, 4/4 beginner exercise with RH melody and LH accompaniment, and may include occasional accidentals as passing approach tones.
 - Tapping `New exercise` again generates and re-renders another deterministic seeded exercise without crashing.
 
 ### Current limitation

@@ -18,7 +18,7 @@ object RuleBasedGenerator {
 
         val bars = chords.mapIndexed { index, chord ->
             val rhythms = rightHandRhythmPattern(random)
-            val rightHand = mutableListOf<NoteEvent>()
+            val rightHandMidi = mutableListOf<MutableRhEvent>()
             var beat = 1
             for (duration in rhythms) {
                 val mustBeChordTone = beat == 1 || beat == 3
@@ -34,28 +34,79 @@ object RuleBasedGenerator {
                 }
                 previousRhMidi = midi
 
-                val (step, octave) = midiToStepOctave(midi)
-                rightHand += NoteEvent(
-                    step = step,
-                    octave = octave,
+                rightHandMidi += MutableRhEvent(
+                    midi = midi,
                     duration = duration,
-                    staff = 1,
-                    voice = 1,
                     beatStart = beat
                 )
                 beat += duration.beats
             }
 
+            maybeInsertChromaticApproach(random = random, chord = chord, rightHand = rightHandMidi)
+
             Bar(
                 number = index + 1,
                 chord = chord,
-                rightHand = rightHand,
+                rightHand = rightHandMidi.map {
+                    noteFromMidi(
+                        midi = it.midi,
+                        duration = it.duration,
+                        staff = 1,
+                        voice = 1,
+                        beatStart = it.beatStart
+                    )
+                },
                 leftHand = generateLeftHand(random, chord)
             )
         }
 
         return Exercise(bars = bars)
     }
+}
+
+private data class MutableRhEvent(
+    var midi: Int,
+    val duration: Duration,
+    val beatStart: Int
+)
+
+private fun maybeInsertChromaticApproach(
+    random: Random,
+    chord: ChordFunction,
+    rightHand: MutableList<MutableRhEvent>
+) {
+    if (random.nextDouble() >= 0.20) return
+
+    val eligibleIndices = rightHand.indices.filter { index ->
+        val event = rightHand[index]
+        val hasNext = index + 1 < rightHand.size
+        if (!hasNext) return@filter false
+
+        val weakBeat = event.beatStart == 2 || event.beatStart == 4
+        if (!weakBeat) return@filter false
+
+        val targetMidi = rightHand[index + 1].midi
+        if (!isChordTone(targetMidi, chord) || !isCmajor(targetMidi)) return@filter false
+
+        chromaticApproachCandidates(targetMidi).isNotEmpty()
+    }
+
+    if (eligibleIndices.isEmpty()) return
+    val index = eligibleIndices[random.nextInt(eligibleIndices.size)]
+    val targetMidi = rightHand[index + 1].midi
+    val candidates = chromaticApproachCandidates(targetMidi)
+    rightHand[index].midi = candidates[random.nextInt(candidates.size)]
+}
+
+private fun chromaticApproachCandidates(targetMidi: Int): List<Int> {
+    val candidates = listOf(targetMidi - 1, targetMidi + 1)
+    return candidates.filter { midi ->
+        midi in rightHandRange() && isAccidentalPitchClass(pitchClass(midi))
+    }
+}
+
+private fun isAccidentalPitchClass(pitchClass: Int): Boolean {
+    return pitchClass in setOf(1, 3, 6, 8, 10)
 }
 
 private fun randomEarlyChord(random: Random): ChordFunction {
@@ -171,10 +222,8 @@ private fun noteFromMidi(
     voice: Int,
     beatStart: Int
 ): NoteEvent {
-    val (step, octave) = midiToStepOctave(midi)
     return NoteEvent(
-        step = step,
-        octave = octave,
+        pitch = midiToPitch(midi),
         duration = duration,
         staff = staff,
         voice = voice,
@@ -182,19 +231,25 @@ private fun noteFromMidi(
     )
 }
 
-private fun midiToStepOctave(midi: Int): Pair<String, Int> {
-    val step = when (pitchClass(midi)) {
-        0 -> "C"
-        2 -> "D"
-        4 -> "E"
-        5 -> "F"
-        7 -> "G"
-        9 -> "A"
-        11 -> "B"
-        else -> error("Accidental pitch class ${pitchClass(midi)} is not supported in M3 writer.")
+private fun midiToPitch(midi: Int): Pitch {
+    val pitchClass = pitchClass(midi)
+    val (step, alter) = when (pitchClass) {
+        0 -> Step.C to 0
+        1 -> Step.C to 1
+        2 -> Step.D to 0
+        3 -> Step.D to 1
+        4 -> Step.E to 0
+        5 -> Step.F to 0
+        6 -> Step.F to 1
+        7 -> Step.G to 0
+        8 -> Step.G to 1
+        9 -> Step.A to 0
+        10 -> Step.A to 1
+        11 -> Step.B to 0
+        else -> error("Unexpected pitch class")
     }
     val octave = (midi / 12) - 1
-    return step to octave
+    return Pitch(step = step, alter = alter, octave = octave)
 }
 
 private fun pitchClass(midi: Int): Int = ((midi % 12) + 12) % 12

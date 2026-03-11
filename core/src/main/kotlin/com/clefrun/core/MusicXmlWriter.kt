@@ -59,18 +59,25 @@ object MusicXmlWriter {
 
     private fun appendNote(xml: StringBuilder, note: NoteEvent) {
         xml.append("      <note>").append('\n')
+        var accidental: String? = null
         if (note.isRest) {
             xml.append("        <rest/>").append('\n')
         } else {
-            val step = requireNotNull(note.step) { "Non-rest note must include step." }
-            val octave = requireNotNull(note.octave) { "Non-rest note must include octave." }
+            val pitch = requireNotNull(note.pitch) { "Non-rest note must include pitch." }
             xml.append("        <pitch>").append('\n')
-            xml.append("          <step>$step</step>").append('\n')
-            xml.append("          <octave>$octave</octave>").append('\n')
+            xml.append("          <step>${pitch.step.name}</step>").append('\n')
+            xml.append("          <alter>${pitch.alter}</alter>").append('\n')
+            xml.append("          <octave>${pitch.octave}</octave>").append('\n')
             xml.append("        </pitch>").append('\n')
+            if (pitch.alter != 0) {
+                accidental = if (pitch.alter > 0) "sharp" else "flat"
+            }
         }
         xml.append("        <duration>${note.duration.beats}</duration>").append('\n')
         xml.append("        <type>${note.duration.musicXmlType}</type>").append('\n')
+        if (accidental != null) {
+            xml.append("        <accidental>$accidental</accidental>").append('\n')
+        }
         xml.append("        <voice>${note.voice}</voice>").append('\n')
         xml.append("        <staff>${note.staff}</staff>").append('\n')
         xml.append("      </note>").append('\n')
