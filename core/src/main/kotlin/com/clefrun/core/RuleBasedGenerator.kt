@@ -6,48 +6,44 @@ import kotlin.random.Random
 object RuleBasedGenerator {
     fun generate(seed: Long): Exercise {
         val random = Random(seed)
-        val chords = listOf(
-            randomEarlyChord(random),
-            randomEarlyChord(random),
-            if (random.nextDouble() < 0.85) ChordFunction.V else randomEarlyChord(random),
-            ChordFunction.I
-        )
+        val chords = buildChordProgression(random)
 
         var previousRhMidi: Int? = null
         var usedPerfectFifth = false
+        var previousShape: List<Int>? = null
+        var recentRhMidis: List<Int> = emptyList()
 
-        val bars = chords.mapIndexed { index, chord ->
-            val rhythms = rightHandRhythmPattern(random)
-            val rightHandMidi = mutableListOf<MutableRhEvent>()
-            var beat = 1
-            for (duration in rhythms) {
-                val mustBeChordTone = beat == 1 || beat == 3
-                val midi = chooseRightHandMidi(
-                    random = random,
-                    chord = chord,
-                    previousMidi = previousRhMidi,
-                    mustBeChordTone = mustBeChordTone,
-                    canUsePerfectFifth = !usedPerfectFifth
-                )
-                if (previousRhMidi != null && abs(midi - previousRhMidi) == 7) {
-                    usedPerfectFifth = true
-                }
-                previousRhMidi = midi
+        val bars = mutableListOf<Bar>()
+        chords.forEachIndexed { index, chord ->
+            val rightHand = generateRightHandBar(
+                random = random,
+                chord = chord,
+                previousRhMidi = previousRhMidi,
+                usedPerfectFifth = usedPerfectFifth,
+                previousShape = previousShape,
+                globalRecentMidis = recentRhMidis
+            )
 
-                rightHandMidi += MutableRhEvent(
-                    midi = midi,
-                    duration = duration,
-                    beatStart = beat
-                )
-                beat += duration.beats
+            if (rightHand.size > 1) {
+                previousShape = rightHand.zipWithNext { a, b -> b.midi - a.midi }
             }
 
-            maybeInsertChromaticApproach(random = random, chord = chord, rightHand = rightHandMidi)
+            if (rightHand.size >= 2) {
+                for (i in 1 until rightHand.size) {
+                    if (abs(rightHand[i].midi - rightHand[i - 1].midi) == 7) {
+                        usedPerfectFifth = true
+                    }
+                }
+            }
+            previousRhMidi = rightHand.lastOrNull()?.midi ?: previousRhMidi
+            recentRhMidis = (recentRhMidis + rightHand.map { it.midi }).takeLast(2)
 
-            Bar(
+            maybeInsertChromaticApproach(random = random, chord = chord, rightHand = rightHand)
+
+            bars += Bar(
                 number = index + 1,
                 chord = chord,
-                rightHand = rightHandMidi.map {
+                rightHand = rightHand.map {
                     noteFromMidi(
                         midi = it.midi,
                         duration = it.duration,
@@ -69,6 +65,63 @@ private data class MutableRhEvent(
     val duration: Duration,
     val beatStart: Int
 )
+
+private fun buildChordProgression(random: Random): List<ChordFunction> {
+    val openingPool = listOf(ChordFunction.I, ChordFunction.II, ChordFunction.III, ChordFunction.IV, ChordFunction.VI)
+    val bar1 = openingPool[random.nextInt(openingPool.size)]
+
+    val bar2Pool = listOf(ChordFunction.II, ChordFunction.III, ChordFunction.IV, ChordFunction.V, ChordFunction.VI)
+        .filter { it != bar1 }
+    val bar2 = bar2Pool[random.nextInt(bar2Pool.size)]
+
+    val bar3Pool = listOf(ChordFunction.V, ChordFunction.II, ChordFunction.IV)
+        .filter { it != bar2 }
+    val bar3 = if (random.nextDouble() < 0.80) ChordFunction.V else bar3Pool[random.nextInt(bar3Pool.size)]
+
+    return listOf(bar1, bar2, bar3, ChordFunction.I)
+}
+
+private fun generateRightHandBar(
+    random: Random,
+    chord: ChordFunction,
+    previousRhMidi: Int?,
+    usedPerfectFifth: Boolean,
+    previousShape: List<Int>?,
+    globalRecentMidis: List<Int>
+): MutableList<MutableRhEvent> {
+    val rhythms = rightHandRhythmPattern(random)
+    var attempt = 0
+    while (true) {
+        val events = mutableListOf<MutableRhEvent>()
+        var beat = 1
+        var localPrev = previousRhMidi
+        val contourDirection = if (random.nextBoolean()) 1 else -1
+
+        for (duration in rhythms) {
+            val mustBeChordTone = beat == 1 || beat == 3
+            val midi = chooseRightHandMidi(
+                random = random,
+                chord = chord,
+                previousMidi = localPrev,
+                mustBeChordTone = mustBeChordTone,
+                canUsePerfectFifth = !usedPerfectFifth,
+                contourDirection = contourDirection,
+                weakBeat = beat == 2 || beat == 4,
+                recent = (globalRecentMidis + events.takeLast(2).map { it.midi }).takeLast(2)
+            )
+            events += MutableRhEvent(midi = midi, duration = duration, beatStart = beat)
+            localPrev = midi
+            beat += duration.beats
+        }
+
+        val shape = events.zipWithNext { a, b -> b.midi - a.midi }
+        val shapeIsSame = previousShape != null && previousShape == shape
+        if (!shapeIsSame || attempt >= 4) {
+            return events
+        }
+        attempt += 1
+    }
+}
 
 private fun maybeInsertChromaticApproach(
     random: Random,
@@ -109,11 +162,6 @@ private fun isAccidentalPitchClass(pitchClass: Int): Boolean {
     return pitchClass in setOf(1, 3, 6, 8, 10)
 }
 
-private fun randomEarlyChord(random: Random): ChordFunction {
-    val pool = listOf(ChordFunction.I, ChordFunction.IV, ChordFunction.V, ChordFunction.VI)
-    return pool[random.nextInt(pool.size)]
-}
-
 private fun rightHandRhythmPattern(random: Random): List<Duration> {
     val patterns = listOf(
         listOf(Duration.QUARTER, Duration.QUARTER, Duration.QUARTER, Duration.QUARTER),
@@ -146,7 +194,10 @@ private fun chooseRightHandMidi(
     chord: ChordFunction,
     previousMidi: Int?,
     mustBeChordTone: Boolean,
-    canUsePerfectFifth: Boolean
+    canUsePerfectFifth: Boolean,
+    contourDirection: Int,
+    weakBeat: Boolean,
+    recent: List<Int>
 ): Int {
     val candidates = rightHandRange().filter { midi ->
         isCmajor(midi) && (!mustBeChordTone || isChordTone(midi, chord))
@@ -158,27 +209,37 @@ private fun chooseRightHandMidi(
         return pool[random.nextInt(pool.size)]
     }
 
-    val allowed = candidates.filter { midi ->
+    val filteredByRepeat = candidates.filterNot { midi ->
+        recent.size == 2 && recent[0] == recent[1] && recent[1] == midi
+    }
+    val repeatAware = if (filteredByRepeat.isNotEmpty()) filteredByRepeat else candidates
+
+    val intervalConstrained = repeatAware.filter { midi ->
         val diff = abs(midi - previousMidi)
         diff <= 5 || (diff == 7 && canUsePerfectFifth)
     }
-    val pool = if (allowed.isNotEmpty()) {
-        allowed
-    } else {
-        val nearest = candidates.minBy { abs(it - previousMidi) }
-        listOf(nearest)
-    }
+    val pool = if (intervalConstrained.isNotEmpty()) intervalConstrained else repeatAware
 
     val weighted = pool
         .map { midi ->
             val diff = abs(midi - previousMidi)
-            val weight = when {
+            var weight = when {
                 diff <= 1 -> 7
                 diff <= 2 -> 5
                 diff <= 4 -> 2
                 diff == 5 -> 1
                 diff == 7 -> 1
                 else -> 1
+            }
+
+            if (weakBeat) {
+                val direction = midi - previousMidi
+                if (direction != 0 && direction / abs(direction) == contourDirection) {
+                    weight += 2
+                }
+            }
+            if (recent.isNotEmpty() && midi == recent.last()) {
+                weight = (weight - 3).coerceAtLeast(1)
             }
             midi to weight
         }
@@ -194,6 +255,8 @@ private fun isCmajor(midi: Int): Boolean = pitchClass(midi) in setOf(0, 2, 4, 5,
 private fun isChordTone(midi: Int, chord: ChordFunction): Boolean {
     val tones = when (chord) {
         ChordFunction.I -> setOf(0, 4, 7)
+        ChordFunction.II -> setOf(2, 5, 9)
+        ChordFunction.III -> setOf(4, 7, 11)
         ChordFunction.IV -> setOf(5, 9, 0)
         ChordFunction.V -> setOf(7, 11, 2)
         ChordFunction.VI -> setOf(9, 0, 4)
@@ -204,10 +267,12 @@ private fun isChordTone(midi: Int, chord: ChordFunction): Boolean {
 private fun leftHandRootMidi(chord: ChordFunction): Int {
     // C2..C3 preferred low register
     return when (chord) {
-        ChordFunction.I -> 36  // C2
-        ChordFunction.IV -> 41 // F2
-        ChordFunction.V -> 43  // G2
-        ChordFunction.VI -> 45 // A2
+        ChordFunction.I -> 36   // C2
+        ChordFunction.II -> 38  // D2
+        ChordFunction.III -> 40 // E2
+        ChordFunction.IV -> 41  // F2
+        ChordFunction.V -> 43   // G2
+        ChordFunction.VI -> 45  // A2
     }
 }
 

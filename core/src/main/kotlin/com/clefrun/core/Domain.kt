@@ -37,6 +37,8 @@ enum class Duration(val beats: Int, val musicXmlType: String) {
 
 enum class ChordFunction {
     I,
+    II,
+    III,
     IV,
     V,
     VI

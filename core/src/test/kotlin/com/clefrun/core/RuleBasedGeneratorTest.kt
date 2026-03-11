@@ -50,10 +50,67 @@ class RuleBasedGeneratorTest {
         }
     }
 
+    @Test
+    fun leftHandRootDoesNotRepeatExcessivelyAcrossBars() {
+        val seeds = (1L..120L).toList()
+        seeds.forEach { seed ->
+            val exercise = RuleBasedGenerator.generate(seed)
+            val roots = exercise.bars.map { toMidi(requireNotNull(it.leftHand.first().pitch)) }
+            var consecutiveRepeats = 0
+            for (i in 1 until roots.size) {
+                if (roots[i] == roots[i - 1]) consecutiveRepeats += 1
+            }
+            assertTrue(
+                "LH root repeats too often (seed=$seed, roots=$roots)",
+                consecutiveRepeats <= 1
+            )
+        }
+    }
+
+    @Test
+    fun rightHandDoesNotContainLongRunsOfSamePitch() {
+        val seeds = (1L..120L).toList()
+        seeds.forEach { seed ->
+            val exercise = RuleBasedGenerator.generate(seed)
+            val rhMidis = exercise.bars
+                .flatMap { it.rightHand }
+                .map { toMidi(requireNotNull(it.pitch)) }
+
+            var runLength = 1
+            var maxRun = 1
+            for (i in 1 until rhMidis.size) {
+                runLength = if (rhMidis[i] == rhMidis[i - 1]) runLength + 1 else 1
+                maxRun = maxOf(maxRun, runLength)
+            }
+            assertTrue(
+                "RH pitch run too long (seed=$seed, maxRun=$maxRun)",
+                maxRun <= 2
+            )
+        }
+    }
+
+    @Test
+    fun generatedExerciseStillMeetsDurationAndWriterConstraints() {
+        val exercise = RuleBasedGenerator.generate(seed = 77L)
+        assertEquals(4, exercise.bars.size)
+        exercise.bars.forEach { bar ->
+            assertEquals(4, bar.rightHand.sumOf { it.duration.beats })
+            assertEquals(4, bar.leftHand.sumOf { it.duration.beats })
+        }
+
+        val xml = MusicXmlWriter.write(exercise)
+        assertTrue(xml.startsWith("<?xml"))
+        assertTrue(xml.contains("<score-partwise"))
+        assertTrue(xml.contains("<part id=\"P1\">"))
+        assertEquals(4, "<measure number=\"".toRegex().findAll(xml).count())
+    }
+
     private fun isChordTone(pitch: Pitch, chord: ChordFunction): Boolean {
         val pitchClass = ((stepToPitchClass(pitch.step) + pitch.alter) % 12 + 12) % 12
         val tones = when (chord) {
             ChordFunction.I -> setOf(0, 4, 7)
+            ChordFunction.II -> setOf(2, 5, 9)
+            ChordFunction.III -> setOf(4, 7, 11)
             ChordFunction.IV -> setOf(5, 9, 0)
             ChordFunction.V -> setOf(7, 11, 2)
             ChordFunction.VI -> setOf(9, 0, 4)
