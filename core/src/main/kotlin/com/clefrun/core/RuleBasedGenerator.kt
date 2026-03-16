@@ -82,7 +82,7 @@ private fun buildChordProgression(random: Random): List<ChordFunction> {
         bar3Pool[random.nextInt(bar3Pool.size)]
     }
 
-    return listOf(bar1, bar2, bar3, ChordFunction.I)
+    return listOf(bar1, bar2, bar3, ChordFunction.I, bar1, bar2, bar3, ChordFunction.I)
 }
 
 private fun generateRightHandBar(

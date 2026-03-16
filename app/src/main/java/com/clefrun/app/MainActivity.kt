@@ -419,8 +419,6 @@ private fun OptionsSheetContent(
                     fontWeight = FontWeight.Medium
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
-
                 DifficultySelector(
                     selected = selectedDifficulty,
                     onSelected = onDifficultySelected,
@@ -437,8 +435,6 @@ private fun OptionsSheetContent(
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium
                 )
-
-                Spacer(modifier = Modifier.height(12.dp))
 
                 Slider(
                     value = tempo,
