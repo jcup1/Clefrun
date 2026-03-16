@@ -1,26 +1,13 @@
-# Clefrun
+# ClefRun
 
-## Milestone 4 smoke test
+ClefRun is a personal pet project and proof of concept for a piano sight-reading practice app.
 
-This milestone keeps C major (fifths=0) and adds occasional RH chromatic approach tones (accidentals) that resolve into chord tones, then renders generated MusicXML through the existing Android WebView + OpenSheetMusicDisplay pipeline.
+I’m building it as a way to explore my own ideas for improving sight-reading practice, both as a mobile developer and as someone who plays piano himself.
 
-### Run
+The project currently focuses on:
+- generating short piano sight-reading exercises,
+- rendering music notation inside the app,
+- experimenting with procedural / algorithmic music generation,
+- exploring playback and other future practice features.
 
-- Build from the project root with `./gradlew assembleDebug`
-- Install/run the `app` module from Android Studio or with your usual debug install flow
-
-### Click path
-
-1. Launch the app.
-2. Wait for the `WebView OSMD Render Test` screen to appear.
-3. Tap `New exercise`.
-
-### Expected result
-
-- A grand staff with treble and bass clefs appears inside the embedded WebView.
-- The score is a generated 4-bar C major, 4/4 beginner exercise with RH melody and LH accompaniment, and may include occasional accidentals as passing approach tones.
-- Tapping `New exercise` again generates and re-renders another deterministic seeded exercise without crashing.
-
-### Current limitation
-
-`score.html` loads OpenSheetMusicDisplay from a CDN (SRI-pinned), so the device or emulator needs network access for this milestone.
+At this stage, ClefRun is mainly a playground for testing product ideas, music-generation concepts, and implementation approaches in a real app.
