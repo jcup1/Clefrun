@@ -24,6 +24,7 @@
 .externalNativeBuild
 .cxx
 local.properties
+.kotlin/
 
 # Local AI agent instructions and skills
 AGENTS.md
