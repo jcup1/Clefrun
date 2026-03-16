@@ -62,7 +62,7 @@ class RuleBasedGeneratorTest {
             }
             assertTrue(
                 "LH root repeats too often (seed=$seed, roots=$roots)",
-                consecutiveRepeats <= 1
+                consecutiveRepeats == 0
             )
         }
     }

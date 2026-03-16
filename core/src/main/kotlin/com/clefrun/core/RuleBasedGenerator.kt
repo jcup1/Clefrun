@@ -24,6 +24,8 @@ object RuleBasedGenerator {
                 globalRecentMidis = recentRhMidis
             )
 
+            maybeInsertChromaticApproach(random = random, chord = chord, rightHand = rightHand)
+
             if (rightHand.size > 1) {
                 previousShape = rightHand.zipWithNext { a, b -> b.midi - a.midi }
             }
@@ -37,8 +39,6 @@ object RuleBasedGenerator {
             }
             previousRhMidi = rightHand.lastOrNull()?.midi ?: previousRhMidi
             recentRhMidis = (recentRhMidis + rightHand.map { it.midi }).takeLast(2)
-
-            maybeInsertChromaticApproach(random = random, chord = chord, rightHand = rightHand)
 
             bars += Bar(
                 number = index + 1,
@@ -76,7 +76,11 @@ private fun buildChordProgression(random: Random): List<ChordFunction> {
 
     val bar3Pool = listOf(ChordFunction.V, ChordFunction.II, ChordFunction.IV)
         .filter { it != bar2 }
-    val bar3 = if (random.nextDouble() < 0.80) ChordFunction.V else bar3Pool[random.nextInt(bar3Pool.size)]
+    val bar3 = if (random.nextDouble() < 0.80 && bar2 != ChordFunction.V) {
+        ChordFunction.V
+    } else {
+        bar3Pool[random.nextInt(bar3Pool.size)]
+    }
 
     return listOf(bar1, bar2, bar3, ChordFunction.I)
 }
@@ -95,6 +99,7 @@ private fun generateRightHandBar(
         val events = mutableListOf<MutableRhEvent>()
         var beat = 1
         var localPrev = previousRhMidi
+        var localUsedPerfectFifth = usedPerfectFifth
         val contourDirection = if (random.nextBoolean()) 1 else -1
 
         for (duration in rhythms) {
@@ -104,11 +109,14 @@ private fun generateRightHandBar(
                 chord = chord,
                 previousMidi = localPrev,
                 mustBeChordTone = mustBeChordTone,
-                canUsePerfectFifth = !usedPerfectFifth,
+                canUsePerfectFifth = !localUsedPerfectFifth,
                 contourDirection = contourDirection,
                 weakBeat = beat == 2 || beat == 4,
                 recent = (globalRecentMidis + events.takeLast(2).map { it.midi }).takeLast(2)
             )
+            if (localPrev != null && abs(midi - localPrev) == 7) {
+                localUsedPerfectFifth = true
+            }
             events += MutableRhEvent(midi = midi, duration = duration, beatStart = beat)
             localPrev = midi
             beat += duration.beats
