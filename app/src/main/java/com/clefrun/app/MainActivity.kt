@@ -9,24 +9,29 @@ import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.Scaffold
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -41,13 +46,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             ClefrunTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    ScoreRenderScreen(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(innerPadding)
-                    )
-                }
+                ScoreRenderScreen(modifier = Modifier.fillMaxSize())
             }
         }
     }
@@ -55,15 +54,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun ScoreRenderScreen(modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier.padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Text(text = "WebView OSMD Render Test")
-        ScoreWebView(
-            modifier = Modifier.fillMaxWidth()
-        )
-    }
+    ScoreWebView(modifier = modifier)
 }
 
 @SuppressLint("SetJavaScriptEnabled")
@@ -71,9 +62,10 @@ fun ScoreRenderScreen(modifier: Modifier = Modifier) {
 private fun ScoreWebView(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     var pageLoaded by remember { mutableStateOf(false) }
-    var pendingXml by remember { mutableStateOf<String?>(null) }
-    var renderRequests by remember { mutableIntStateOf(0) }
     var seedCounter by remember { mutableLongStateOf(1L) }
+    var pendingXml by remember {
+        mutableStateOf<String?>(generateExerciseXml(seedCounter).also { seedCounter += 1 })
+    }
 
     val webView = remember(context) {
         WebView(context).apply {
@@ -110,45 +102,60 @@ private fun ScoreWebView(modifier: Modifier = Modifier) {
         }
     }
 
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+    Box(
+        modifier = modifier
+            .background(ReaderStone)
+            .fillMaxSize()
     ) {
-        Button(
-            onClick = {
-                val exercise = RuleBasedGenerator.generate(seedCounter)
-                val xml = MusicXmlWriter.write(exercise)
-                seedCounter += 1
-                renderRequests += 1
-                if (pageLoaded) {
-                    renderMusicXml(webView, xml)
-                } else {
-                    pendingXml = xml
-                }
-            }
-        ) {
-            Text("New exercise")
-        }
-
         AndroidWebView(
             webView = webView,
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
+                .fillMaxSize()
+                .padding(horizontal = 6.dp, vertical = 8.dp)
         )
 
-        if (renderRequests == 0) {
-            Text(text = "Tap the button to generate and render a beginner exercise.")
+        Surface(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .statusBarsPadding()
+                .padding(top = 12.dp, end = 12.dp)
+                .offset(y = 2.dp)
+                .clickable {
+                    val xml = generateExerciseXml(seedCounter)
+                    seedCounter += 1
+                    if (pageLoaded) {
+                        renderMusicXml(webView, xml)
+                    } else {
+                        pendingXml = xml
+                    }
+                },
+            shape = RoundedCornerShape(100.dp),
+            color = PillBackground,
+            shadowElevation = 8.dp,
+            tonalElevation = 2.dp
+        ) {
+            Box(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .size(7.dp)
+                        .background(PillAccent, CircleShape)
+                )
+                Text(
+                    text = "New",
+                    color = CharcoalInk,
+                    modifier = Modifier.padding(start = 14.dp)
+                )
+            }
         }
     }
 }
 
-@Composable
-private fun AndroidWebView(webView: WebView, modifier: Modifier = Modifier) {
-    androidx.compose.ui.viewinterop.AndroidView(
-        factory = { webView },
-        modifier = modifier
-    )
+private fun generateExerciseXml(seed: Long): String {
+    val exercise = RuleBasedGenerator.generate(seed)
+    return MusicXmlWriter.write(exercise)
 }
 
 private fun renderMusicXml(webView: WebView, xmlString: String) {
@@ -167,6 +174,11 @@ private fun isAllowedNavigation(uri: Uri?): Boolean {
 private const val SCORE_HTML_ASSET_URL = "file:///android_asset/score.html"
 private const val ALLOWED_CDN_HOST = "cdn.jsdelivr.net"
 
+private val ReaderStone = Color(0xFFF1EEE7)
+private val CharcoalInk = Color(0xFF2F2A24)
+private val PillAccent = Color(0xFF28566A)
+private val PillBackground = Color(0xEBFFF9F0)
+
 @Preview(showBackground = true)
 @Composable
 fun ScoreRenderScreenPreview() {
@@ -175,4 +187,12 @@ fun ScoreRenderScreenPreview() {
             modifier = Modifier.height(640.dp)
         )
     }
+}
+
+@Composable
+private fun AndroidWebView(webView: WebView, modifier: Modifier = Modifier) {
+    androidx.compose.ui.viewinterop.AndroidView(
+        factory = { webView },
+        modifier = modifier
+    )
 }
