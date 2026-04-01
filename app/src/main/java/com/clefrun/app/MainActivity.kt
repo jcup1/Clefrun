@@ -420,7 +420,6 @@ private fun OptionsSheetContent(
                 DifficultySelector(
                     selected = selectedDifficulty,
                     onSelected = onDifficultySelected,
-                    enabled = false,
                     modifier = Modifier.padding(top = 12.dp)
                 )
 
@@ -438,7 +437,6 @@ private fun OptionsSheetContent(
                 Slider(
                     value = tempo,
                     onValueChange = onTempoChange,
-                    enabled = false,
                     colors = SliderDefaults.colors(
                         thumbColor = WarmAccent,
                         activeTrackColor = WarmAccent,
