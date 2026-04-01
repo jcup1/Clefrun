@@ -1,6 +1,7 @@
 package com.clefrun.app
 
 import android.annotation.SuppressLint
+import android.content.res.Configuration
 import android.net.Uri
 import android.os.Bundle
 import android.webkit.WebResourceRequest
@@ -9,6 +10,7 @@ import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -47,7 +49,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -56,6 +57,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -63,6 +65,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModel
+import androidx.compose.runtime.mutableLongStateOf
 import com.clefrun.app.ui.theme.AppBackground
 import com.clefrun.app.ui.theme.Charcoal
 import com.clefrun.app.ui.theme.ClefrunTheme
@@ -81,40 +85,193 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
+    private val scoreViewModel: ScoreViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
         setContent {
-            var regenerateSignal by remember { mutableLongStateOf(0L) }
-
             ClefrunTheme {
                 ScoreRenderScreen(
-                    regenerateSignal = regenerateSignal,
-                    onRegenerate = { regenerateSignal++ }
+                    scoreViewModel = scoreViewModel,
+                    modifier = Modifier.fillMaxSize()
                 )
             }
         }
     }
 }
 
+class ScoreViewModel : ViewModel() {
+    private var nextSeed by mutableLongStateOf(2L)
+
+    var selectedDifficulty by mutableStateOf(Difficulty.EASY)
+        private set
+
+    var currentMusicXml by mutableStateOf(generateExerciseXml(seed = 1L, difficulty = Difficulty.EASY))
+        private set
+
+    fun onDifficultySelected(difficulty: Difficulty) {
+        selectedDifficulty = difficulty
+    }
+
+    fun onNewExercise() {
+        currentMusicXml = generateExerciseXml(seed = nextSeed, difficulty = selectedDifficulty)
+        nextSeed += 1
+    }
+}
+
+@Composable
+fun ScoreRenderScreen(
+    scoreViewModel: ScoreViewModel,
+    modifier: Modifier = Modifier,
+) {
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    if (isLandscape) {
+        LandscapeScoreScreen(
+            musicXml = scoreViewModel.currentMusicXml,
+            modifier = modifier
+        )
+    } else {
+        PortraitScoreScreen(
+            musicXml = scoreViewModel.currentMusicXml,
+            selectedDifficulty = scoreViewModel.selectedDifficulty,
+            onDifficultySelected = scoreViewModel::onDifficultySelected,
+            onRegenerate = scoreViewModel::onNewExercise,
+            modifier = modifier
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PortraitScoreScreen(
+    musicXml: String,
+    selectedDifficulty: Difficulty,
+    onDifficultySelected: (Difficulty) -> Unit,
+    onRegenerate: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var tempo by remember { mutableFloatStateOf(0.55f) }
+
+    val scaffoldState = rememberBottomSheetScaffoldState(
+        bottomSheetState = rememberStandardBottomSheetState(
+            initialValue = SheetValue.PartiallyExpanded,
+            skipHiddenState = false
+        )
+    )
+    val scope = rememberCoroutineScope()
+
+    BottomSheetScaffold(
+        modifier = modifier.fillMaxSize(),
+        scaffoldState = scaffoldState,
+        sheetPeekHeight = 86.dp,
+        sheetContainerColor = Paper,
+        sheetContentColor = Charcoal,
+        sheetShadowElevation = 12.dp,
+        sheetDragHandle = {
+            Surface(
+                color = Divider,
+                shape = RoundedCornerShape(999.dp),
+                modifier = Modifier
+                    .padding(top = 10.dp, bottom = 8.dp)
+                    .size(width = 56.dp, height = 6.dp)
+            ) {}
+        },
+        sheetContent = {
+            OptionsSheetContent(
+                selectedDifficulty = selectedDifficulty,
+                onDifficultySelected = onDifficultySelected,
+                tempo = tempo,
+                onTempoChange = { tempo = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(bottom = 12.dp)
+            )
+        },
+        containerColor = AppBackground
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(AppBackground)
+                .padding(top = innerPadding.calculateTopPadding())
+        ) {
+            TopOverlayBar(
+                onNewClick = onRegenerate,
+                onOptionsClick = {
+                    scope.launch {
+                        val sheetState = scaffoldState.bottomSheetState
+                        if (sheetState.currentValue == SheetValue.Expanded) {
+                            sheetState.partialExpand()
+                        } else {
+                            sheetState.expand()
+                        }
+                    }
+                }
+            )
+
+            ScoreSurface(
+                musicXml = musicXml,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(horizontal = 12.dp)
+                    .padding(bottom = 12.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun LandscapeScoreScreen(
+    musicXml: String,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(AppBackground)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(10.dp)
+    ) {
+        ScoreSurface(
+            musicXml = musicXml,
+            modifier = Modifier.fillMaxSize()
+        )
+    }
+}
+
+@Composable
+private fun ScoreSurface(
+    musicXml: String,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(Paper)
+    ) {
+        ScoreWebView(
+            musicXml = musicXml,
+            modifier = Modifier.fillMaxSize()
+        )
+    }
+}
+
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
 private fun ScoreWebView(
-    regenerateSignal: Long,
-    difficulty: Difficulty,
+    musicXml: String,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     var pageLoaded by remember { mutableStateOf(false) }
-    var seedCounter by remember { mutableLongStateOf(2L) }
-    var pendingXml by remember { mutableStateOf<String?>(generateExerciseXml(1L, difficulty)) }
-
-    LaunchedEffect(difficulty, pageLoaded) {
-        if (!pageLoaded) {
-            pendingXml = generateExerciseXml(1L, difficulty)
-        }
-    }
+    var pendingXml by remember { mutableStateOf<String?>(musicXml) }
 
     val webView = remember(context) {
         WebView(context).apply {
@@ -151,14 +308,12 @@ private fun ScoreWebView(
         }
     }
 
-    LaunchedEffect(regenerateSignal) {
-        if (regenerateSignal == 0L) return@LaunchedEffect
-        val xml = generateExerciseXml(seedCounter, difficulty)
-        seedCounter += 1
+    LaunchedEffect(musicXml, pageLoaded) {
         if (pageLoaded) {
-            renderMusicXml(webView, xml)
+            pendingXml = null
+            renderMusicXml(webView, musicXml)
         } else {
-            pendingXml = xml
+            pendingXml = musicXml
         }
     }
 
@@ -196,93 +351,6 @@ private fun isAllowedNavigation(uri: Uri?): Boolean {
 
 private const val SCORE_HTML_ASSET_URL = "file:///android_asset/score.html"
 private const val ALLOWED_CDN_HOST = "cdn.jsdelivr.net"
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ScoreRenderScreen(
-    regenerateSignal: Long,
-    onRegenerate: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    var selectedDifficulty by remember { mutableStateOf(Difficulty.EASY) }
-    var tempo by remember { mutableFloatStateOf(0.55f) }
-
-    val scaffoldState = rememberBottomSheetScaffoldState(
-        bottomSheetState = rememberStandardBottomSheetState(
-            initialValue = SheetValue.PartiallyExpanded,
-            skipHiddenState = false
-        )
-    )
-    val scope = rememberCoroutineScope()
-
-    BottomSheetScaffold(
-        modifier = modifier.fillMaxSize(),
-        scaffoldState = scaffoldState,
-        sheetPeekHeight = 86.dp,
-        sheetContainerColor = Paper,
-        sheetContentColor = Charcoal,
-        sheetShadowElevation = 12.dp,
-        sheetDragHandle = {
-            Surface(
-                color = Divider,
-                shape = RoundedCornerShape(999.dp),
-                modifier = Modifier
-                    .padding(top = 10.dp, bottom = 8.dp)
-                    .size(width = 56.dp, height = 6.dp)
-            ) {}
-        },
-        sheetContent = {
-            OptionsSheetContent(
-                selectedDifficulty = selectedDifficulty,
-                onDifficultySelected = { selectedDifficulty = it },
-                tempo = tempo,
-                onTempoChange = { tempo = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(bottom = 12.dp)
-            )
-        },
-        containerColor = AppBackground
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(AppBackground)
-                .padding(top = innerPadding.calculateTopPadding())
-        ) {
-            TopOverlayBar(
-                onNewClick = onRegenerate,
-                onOptionsClick = {
-                    scope.launch {
-                        val sheetState = scaffoldState.bottomSheetState
-                        if (sheetState.currentValue == SheetValue.Expanded) {
-                            sheetState.partialExpand()
-                        } else {
-                            sheetState.expand()
-                        }
-                    }
-                }
-            )
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .padding(horizontal = 12.dp)
-                    .padding(bottom = 12.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(Paper)
-            ) {
-                ScoreWebView(
-                    regenerateSignal = regenerateSignal,
-                    difficulty = selectedDifficulty,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-        }
-    }
-}
 
 @Composable
 private fun TopOverlayBar(
