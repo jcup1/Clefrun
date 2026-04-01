@@ -11,11 +11,12 @@
   <style>
     :root {
       color-scheme: light;
-      --page: #f3efe2;
-      --panel: #fffdf8;
-      --ink: #1f1b16;
-      --line: #d8d0bb;
-      --error: #9f2d20;
+      --stone: #ece7dc;
+      --paper: #fffaf0;
+      --ink: #2f2a24;
+      --line: #ddd4c2;
+      --error: #8f3526;
+      --accent: #2c596d;
     }
 
     * {
@@ -25,65 +26,58 @@
     body {
       margin: 0;
       min-height: 100vh;
-      background:
-        radial-gradient(circle at top left, rgba(190, 165, 108, 0.22), transparent 32%),
-        linear-gradient(180deg, #faf6ea 0%, var(--page) 100%);
+      background: linear-gradient(180deg, #f5f1e7 0%, var(--stone) 100%);
       color: var(--ink);
       font-family: Georgia, "Times New Roman", serif;
     }
 
-    .shell {
-      min-height: 100vh;
-      padding: 16px;
+    #reader {
+      width: 100vw;
+      height: 100vh;
     }
 
-    .panel {
-      min-height: calc(100vh - 32px);
-      padding: 16px;
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      background: rgba(255, 253, 248, 0.94);
-      box-shadow: 0 18px 50px rgba(68, 49, 20, 0.10);
-    }
-
-    h1 {
-      margin: 0 0 8px;
-      font-size: 20px;
-      font-weight: 600;
-    }
-
-    p {
-      margin: 0 0 16px;
-      color: #5c5244;
-      line-height: 1.4;
+    #score {
+      width: 100%;
+      height: 100%;
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      background: var(--paper);
+      overflow-x: auto;
+      overflow-y: auto;
     }
 
     #status {
-      min-height: 24px;
-      margin-bottom: 12px;
+      position: fixed;
+      top: 8px;
+      left: 10px;
+      max-width: 60vw;
+      padding: 4px 8px;
+      border-radius: 8px;
+      background: rgba(255, 250, 240, 0.86);
+      border: 1px solid rgba(44, 89, 109, 0.25);
       font-size: 14px;
+      color: var(--accent);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 180ms ease;
     }
 
     #status.error {
       color: var(--error);
       font-weight: 600;
+      opacity: 1;
     }
 
-    #score {
-      width: 100%;
-      overflow-x: auto;
-      overflow-y: hidden;
+    #status:not(:empty) {
+      opacity: 1;
     }
   </style>
 </head>
 <body>
-  <div class="shell">
-    <div class="panel">
-      <h1>OSMD Test Renderer</h1>
-      <p>Tap the Android button to load the hardcoded MusicXML sample into this WebView.</p>
-      <div id="status">Waiting for MusicXML input.</div>
-      <div id="score"></div>
-    </div>
+  <div id="reader">
+    <div id="status"></div>
+    <div id="score"></div>
   </div>
   <script>
     const scoreContainer = document.getElementById("score");
@@ -111,7 +105,7 @@
         setStatus("Rendering score...", false);
         await osmd.load(xmlString);
         osmd.render();
-        setStatus("Rendered 4-bar test score.", false);
+        setStatus("", false);
       } catch (error) {
         console.error(error);
         setStatus(error && error.message ? error.message : "Unknown rendering error.", true);
