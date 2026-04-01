@@ -461,8 +461,8 @@ private fun OptionsSheetContent(
 private fun DifficultySelector(
     selected: DifficultyUi,
     onSelected: (DifficultyUi) -> Unit,
-    enabled: Boolean = true,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     val options = DifficultyUi.entries
 
