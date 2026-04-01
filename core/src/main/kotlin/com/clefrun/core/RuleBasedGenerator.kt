@@ -4,12 +4,12 @@ import kotlin.math.abs
 import kotlin.random.Random
 
 object RuleBasedGenerator {
-    fun generate(seed: Long): Exercise {
+    fun generate(seed: Long, difficulty: Difficulty = Difficulty.MEDIUM): Exercise {
         val random = Random(seed)
+        val profile = difficulty.profile()
         val chords = buildChordProgression(random)
 
         var previousRhMidi: Int? = null
-        var usedPerfectFifth = false
         var previousShape: List<Int>? = null
         var recentRhMidis: List<Int> = emptyList()
 
@@ -19,26 +19,23 @@ object RuleBasedGenerator {
                 random = random,
                 chord = chord,
                 previousRhMidi = previousRhMidi,
-                usedPerfectFifth = usedPerfectFifth,
                 previousShape = previousShape,
-                globalRecentMidis = recentRhMidis
+                globalRecentMidis = recentRhMidis,
+                profile = profile
             )
 
-            maybeInsertChromaticApproach(random = random, chord = chord, rightHand = rightHand)
+            maybeInsertChromaticApproach(
+                random = random,
+                chord = chord,
+                rightHand = rightHand,
+                profile = profile
+            )
 
             if (rightHand.size > 1) {
                 previousShape = rightHand.zipWithNext { a, b -> b.midi - a.midi }
             }
-
-            if (rightHand.size >= 2) {
-                for (i in 1 until rightHand.size) {
-                    if (abs(rightHand[i].midi - rightHand[i - 1].midi) == 7) {
-                        usedPerfectFifth = true
-                    }
-                }
-            }
             previousRhMidi = rightHand.lastOrNull()?.midi ?: previousRhMidi
-            recentRhMidis = (recentRhMidis + rightHand.map { it.midi }).takeLast(2)
+            recentRhMidis = (recentRhMidis + rightHand.map { it.midi }).takeLast(3)
 
             bars += Bar(
                 number = index + 1,
@@ -52,12 +49,29 @@ object RuleBasedGenerator {
                         beatStart = it.beatStart
                     )
                 },
-                leftHand = generateLeftHand(random, chord)
+                leftHand = generateLeftHand(random, chord, profile)
             )
         }
 
         return Exercise(bars = bars)
     }
+}
+
+private data class DifficultyProfile(
+    val rightHandRange: IntRange,
+    val preferredOpeningRange: IntRange,
+    val rhythmPatterns: List<List<Duration>>,
+    val accidentalProbability: Double,
+    val maxLeap: Int,
+    val largeLeapWeightPenalty: Int,
+    val repeatPenalty: Int,
+    val leftHandStyle: LeftHandStyle
+)
+
+private enum class LeftHandStyle {
+    EASY,
+    MEDIUM,
+    HARD
 }
 
 private data class MutableRhEvent(
@@ -66,17 +80,89 @@ private data class MutableRhEvent(
     val beatStart: Int
 )
 
+private fun Difficulty.profile(): DifficultyProfile {
+    return when (this) {
+        Difficulty.EASY -> DifficultyProfile(
+            rightHandRange = 62..74,
+            preferredOpeningRange = 65..71,
+            rhythmPatterns = listOf(
+                listOf(Duration.HALF, Duration.HALF),
+                listOf(Duration.QUARTER, Duration.QUARTER, Duration.HALF),
+                listOf(Duration.HALF, Duration.QUARTER, Duration.QUARTER),
+                listOf(Duration.HALF, Duration.HALF)
+            ),
+            accidentalProbability = 0.0,
+            maxLeap = 5,
+            largeLeapWeightPenalty = 3,
+            repeatPenalty = 4,
+            leftHandStyle = LeftHandStyle.EASY
+        )
+        Difficulty.MEDIUM -> DifficultyProfile(
+            rightHandRange = 60..79,
+            preferredOpeningRange = 64..72,
+            rhythmPatterns = listOf(
+                listOf(Duration.QUARTER, Duration.QUARTER, Duration.QUARTER, Duration.QUARTER),
+                listOf(Duration.QUARTER, Duration.QUARTER, Duration.HALF),
+                listOf(Duration.HALF, Duration.QUARTER, Duration.QUARTER),
+                listOf(Duration.QUARTER, Duration.HALF, Duration.QUARTER),
+                listOf(Duration.HALF, Duration.HALF)
+            ),
+            accidentalProbability = 0.18,
+            maxLeap = 7,
+            largeLeapWeightPenalty = 2,
+            repeatPenalty = 3,
+            leftHandStyle = LeftHandStyle.MEDIUM
+        )
+        Difficulty.HARD -> DifficultyProfile(
+            rightHandRange = 59..81,
+            preferredOpeningRange = 63..74,
+            rhythmPatterns = listOf(
+                listOf(Duration.QUARTER, Duration.QUARTER, Duration.QUARTER, Duration.QUARTER),
+                listOf(Duration.QUARTER, Duration.QUARTER, Duration.QUARTER, Duration.QUARTER),
+                listOf(Duration.QUARTER, Duration.QUARTER, Duration.HALF),
+                listOf(Duration.HALF, Duration.QUARTER, Duration.QUARTER),
+                listOf(Duration.QUARTER, Duration.HALF, Duration.QUARTER)
+            ),
+            accidentalProbability = 0.35,
+            maxLeap = 9,
+            largeLeapWeightPenalty = 1,
+            repeatPenalty = 2,
+            leftHandStyle = LeftHandStyle.HARD
+        )
+    }
+}
+
 private fun buildChordProgression(random: Random): List<ChordFunction> {
-    val openingPool = listOf(ChordFunction.I, ChordFunction.II, ChordFunction.III, ChordFunction.IV, ChordFunction.VI)
+    val phraseA = buildPhrase(random)
+    val phraseB = buildPhrase(random, avoidOpenings = setOf(phraseA.first(), phraseA.last()))
+    return phraseA + phraseB
+}
+
+private fun buildPhrase(
+    random: Random,
+    avoidOpenings: Set<ChordFunction> = emptySet()
+): List<ChordFunction> {
+    val openingPool = listOf(
+        ChordFunction.I,
+        ChordFunction.II,
+        ChordFunction.III,
+        ChordFunction.IV,
+        ChordFunction.VI
+    ).filterNot { it in avoidOpenings }
     val bar1 = openingPool[random.nextInt(openingPool.size)]
 
-    val bar2Pool = listOf(ChordFunction.II, ChordFunction.III, ChordFunction.IV, ChordFunction.V, ChordFunction.VI)
-        .filter { it != bar1 }
+    val bar2Pool = listOf(
+        ChordFunction.II,
+        ChordFunction.III,
+        ChordFunction.IV,
+        ChordFunction.V,
+        ChordFunction.VI
+    ).filter { it != bar1 }
     val bar2 = bar2Pool[random.nextInt(bar2Pool.size)]
 
     val bar3Pool = listOf(ChordFunction.V, ChordFunction.II, ChordFunction.IV)
         .filter { it != bar2 }
-    val bar3 = if (random.nextDouble() < 0.80 && bar2 != ChordFunction.V) {
+    val bar3 = if (random.nextDouble() < 0.75 && bar2 != ChordFunction.V) {
         ChordFunction.V
     } else {
         bar3Pool[random.nextInt(bar3Pool.size)]
@@ -89,34 +175,29 @@ private fun generateRightHandBar(
     random: Random,
     chord: ChordFunction,
     previousRhMidi: Int?,
-    usedPerfectFifth: Boolean,
     previousShape: List<Int>?,
-    globalRecentMidis: List<Int>
+    globalRecentMidis: List<Int>,
+    profile: DifficultyProfile
 ): MutableList<MutableRhEvent> {
-    val rhythms = rightHandRhythmPattern(random)
     var attempt = 0
     while (true) {
+        val rhythms = rightHandRhythmPattern(random, profile)
         val events = mutableListOf<MutableRhEvent>()
         var beat = 1
         var localPrev = previousRhMidi
-        var localUsedPerfectFifth = usedPerfectFifth
         val contourDirection = if (random.nextBoolean()) 1 else -1
 
         for (duration in rhythms) {
-            val mustBeChordTone = beat == 1 || beat == 3
             val midi = chooseRightHandMidi(
                 random = random,
                 chord = chord,
                 previousMidi = localPrev,
-                mustBeChordTone = mustBeChordTone,
-                canUsePerfectFifth = !localUsedPerfectFifth,
+                mustBeChordTone = beat == 1 || beat == 3,
                 contourDirection = contourDirection,
                 weakBeat = beat == 2 || beat == 4,
-                recent = (globalRecentMidis + events.takeLast(2).map { it.midi }).takeLast(2)
+                recent = (globalRecentMidis + events.takeLast(2).map { it.midi }).takeLast(3),
+                profile = profile
             )
-            if (localPrev != null && abs(midi - localPrev) == 7) {
-                localUsedPerfectFifth = true
-            }
             events += MutableRhEvent(midi = midi, duration = duration, beatStart = beat)
             localPrev = midi
             beat += duration.beats
@@ -134,67 +215,105 @@ private fun generateRightHandBar(
 private fun maybeInsertChromaticApproach(
     random: Random,
     chord: ChordFunction,
-    rightHand: MutableList<MutableRhEvent>
+    rightHand: MutableList<MutableRhEvent>,
+    profile: DifficultyProfile
 ) {
-    if (random.nextDouble() >= 0.20) return
+    if (profile.accidentalProbability <= 0.0 || random.nextDouble() >= profile.accidentalProbability) {
+        return
+    }
 
     val eligibleIndices = rightHand.indices.filter { index ->
         val event = rightHand[index]
-        val hasNext = index + 1 < rightHand.size
-        if (!hasNext) return@filter false
-
-        val weakBeat = event.beatStart == 2 || event.beatStart == 4
-        if (!weakBeat) return@filter false
+        if (index + 1 >= rightHand.size) return@filter false
+        if (event.beatStart != 2 && event.beatStart != 4) return@filter false
 
         val targetMidi = rightHand[index + 1].midi
-        if (!isChordTone(targetMidi, chord) || !isCmajor(targetMidi)) return@filter false
-
-        chromaticApproachCandidates(targetMidi).isNotEmpty()
+        isChordTone(targetMidi, chord) &&
+            isCmajor(targetMidi) &&
+            chromaticApproachCandidates(targetMidi, profile.rightHandRange).isNotEmpty()
     }
 
     if (eligibleIndices.isEmpty()) return
+
     val index = eligibleIndices[random.nextInt(eligibleIndices.size)]
     val targetMidi = rightHand[index + 1].midi
-    val candidates = chromaticApproachCandidates(targetMidi)
+    val candidates = chromaticApproachCandidates(targetMidi, profile.rightHandRange)
     rightHand[index].midi = candidates[random.nextInt(candidates.size)]
 }
 
-private fun chromaticApproachCandidates(targetMidi: Int): List<Int> {
-    val candidates = listOf(targetMidi - 1, targetMidi + 1)
-    return candidates.filter { midi ->
-        midi in rightHandRange() && isAccidentalPitchClass(pitchClass(midi))
+private fun chromaticApproachCandidates(targetMidi: Int, range: IntRange): List<Int> {
+    return listOf(targetMidi - 1, targetMidi + 1).filter { midi ->
+        midi in range && isAccidentalPitchClass(pitchClass(midi))
     }
 }
 
-private fun isAccidentalPitchClass(pitchClass: Int): Boolean {
-    return pitchClass in setOf(1, 3, 6, 8, 10)
+private fun rightHandRhythmPattern(random: Random, profile: DifficultyProfile): List<Duration> {
+    return profile.rhythmPatterns[random.nextInt(profile.rhythmPatterns.size)]
 }
 
-private fun rightHandRhythmPattern(random: Random): List<Duration> {
-    val patterns = listOf(
-        listOf(Duration.QUARTER, Duration.QUARTER, Duration.QUARTER, Duration.QUARTER),
-        listOf(Duration.HALF, Duration.HALF),
-        listOf(Duration.QUARTER, Duration.QUARTER, Duration.HALF),
-        listOf(Duration.HALF, Duration.QUARTER, Duration.QUARTER)
-    )
-    return patterns[random.nextInt(patterns.size)]
-}
+private fun generateLeftHand(
+    random: Random,
+    chord: ChordFunction,
+    profile: DifficultyProfile
+): List<NoteEvent> {
+    val root = leftHandRootMidi(chord)
+    val third = leftHandThirdMidi(chord)
+    val fifth = leftHandFifthMidi(chord)
 
-private fun generateLeftHand(random: Random, chord: ChordFunction): List<NoteEvent> {
-    val rootMidi = leftHandRootMidi(chord)
-    val fifthMidi = leftHandFifthMidi(chord)
-    val useFifthOnBeatThree = random.nextBoolean()
+    val pattern: List<Pair<Int, Duration>> = when (profile.leftHandStyle) {
+        LeftHandStyle.EASY -> if (random.nextDouble() < 0.65) {
+            listOf(root to Duration.WHOLE)
+        } else {
+            listOf(
+                root to Duration.HALF,
+                (if (random.nextBoolean()) root else fifth) to Duration.HALF
+            )
+        }
+        LeftHandStyle.MEDIUM -> {
+            if (random.nextDouble() < 0.55) {
+                listOf(
+                    root to Duration.HALF,
+                    (if (random.nextBoolean()) fifth else root) to Duration.HALF
+                )
+            } else {
+                listOf(
+                    root to Duration.QUARTER,
+                    fifth to Duration.QUARTER,
+                    third to Duration.QUARTER,
+                    fifth to Duration.QUARTER
+                )
+            }
+        }
+        LeftHandStyle.HARD -> {
+            if (random.nextDouble() < 0.30) {
+                listOf(
+                    root to Duration.HALF,
+                    fifth to Duration.QUARTER,
+                    third to Duration.QUARTER
+                )
+            } else {
+                listOf(
+                    root to Duration.QUARTER,
+                    fifth to Duration.QUARTER,
+                    third to Duration.QUARTER,
+                    (if (random.nextBoolean()) fifth else root) to Duration.QUARTER
+                )
+            }
+        }
+    }
 
-    return listOf(
-        noteFromMidi(rootMidi, Duration.HALF, staff = 2, voice = 2, beatStart = 1),
+    var beatStart = 1
+    return pattern.map { (midi, duration) ->
         noteFromMidi(
-            if (useFifthOnBeatThree) fifthMidi else rootMidi,
-            Duration.HALF,
+            midi = midi,
+            duration = duration,
             staff = 2,
             voice = 2,
-            beatStart = 3
-        )
-    )
+            beatStart = beatStart
+        ).also {
+            beatStart += duration.beats
+        }
+    }
 }
 
 private fun chooseRightHandMidi(
@@ -202,42 +321,42 @@ private fun chooseRightHandMidi(
     chord: ChordFunction,
     previousMidi: Int?,
     mustBeChordTone: Boolean,
-    canUsePerfectFifth: Boolean,
     contourDirection: Int,
     weakBeat: Boolean,
-    recent: List<Int>
+    recent: List<Int>,
+    profile: DifficultyProfile
 ): Int {
-    val candidates = rightHandRange().filter { midi ->
+    val candidates = profile.rightHandRange.filter { midi ->
         isCmajor(midi) && (!mustBeChordTone || isChordTone(midi, chord))
     }
 
     if (previousMidi == null) {
-        val preferred = candidates.filter { it in 64..72 }
-        val pool = if (preferred.isNotEmpty()) preferred else candidates
+        val pool = candidates.filter { it in profile.preferredOpeningRange }.ifEmpty { candidates }
         return pool[random.nextInt(pool.size)]
     }
 
-    val filteredByRepeat = candidates.filterNot { midi ->
-        recent.size == 2 && recent[0] == recent[1] && recent[1] == midi
-    }
-    val repeatAware = if (filteredByRepeat.isNotEmpty()) filteredByRepeat else candidates
+    val repeatAware = candidates.filterNot { midi ->
+        recent.size >= 2 && recent.takeLast(2).all { it == midi }
+    }.ifEmpty { candidates }
 
-    val intervalConstrained = repeatAware.filter { midi ->
-        val diff = abs(midi - previousMidi)
-        diff <= 5 || (diff == 7 && canUsePerfectFifth)
-    }
-    val pool = if (intervalConstrained.isNotEmpty()) intervalConstrained else repeatAware
+    val intervalAware = repeatAware.filter { midi ->
+        abs(midi - previousMidi) <= profile.maxLeap
+    }.ifEmpty { repeatAware }
 
-    val weighted = pool
+    val weighted = intervalAware
         .map { midi ->
             val diff = abs(midi - previousMidi)
             var weight = when {
+                diff == 0 -> 2
                 diff <= 1 -> 7
-                diff <= 2 -> 5
-                diff <= 4 -> 2
-                diff == 5 -> 1
-                diff == 7 -> 1
+                diff <= 2 -> 6
+                diff <= 4 -> 4
+                diff <= 5 -> 2
                 else -> 1
+            }
+
+            if (diff >= 5) {
+                weight = (weight - profile.largeLeapWeightPenalty).coerceAtLeast(1)
             }
 
             if (weakBeat) {
@@ -246,9 +365,11 @@ private fun chooseRightHandMidi(
                     weight += 2
                 }
             }
+
             if (recent.isNotEmpty() && midi == recent.last()) {
-                weight = (weight - 3).coerceAtLeast(1)
+                weight = (weight - profile.repeatPenalty).coerceAtLeast(1)
             }
+
             midi to weight
         }
         .flatMap { (midi, weight) -> List(weight) { midi } }
@@ -256,7 +377,7 @@ private fun chooseRightHandMidi(
     return weighted[random.nextInt(weighted.size)]
 }
 
-private fun rightHandRange(): IntRange = 60..79 // C4..G5
+private fun isAccidentalPitchClass(pitchClass: Int): Boolean = pitchClass in setOf(1, 3, 6, 8, 10)
 
 private fun isCmajor(midi: Int): Boolean = pitchClass(midi) in setOf(0, 2, 4, 5, 7, 9, 11)
 
@@ -273,20 +394,24 @@ private fun isChordTone(midi: Int, chord: ChordFunction): Boolean {
 }
 
 private fun leftHandRootMidi(chord: ChordFunction): Int {
-    // C2..C3 preferred low register
     return when (chord) {
-        ChordFunction.I -> 36   // C2
-        ChordFunction.II -> 38  // D2
-        ChordFunction.III -> 40 // E2
-        ChordFunction.IV -> 41  // F2
-        ChordFunction.V -> 43   // G2
-        ChordFunction.VI -> 45  // A2
+        ChordFunction.I -> 36
+        ChordFunction.II -> 38
+        ChordFunction.III -> 40
+        ChordFunction.IV -> 41
+        ChordFunction.V -> 43
+        ChordFunction.VI -> 45
     }
 }
 
-private fun leftHandFifthMidi(chord: ChordFunction): Int {
-    return leftHandRootMidi(chord) + 7
+private fun leftHandThirdMidi(chord: ChordFunction): Int {
+    return leftHandRootMidi(chord) + when (chord) {
+        ChordFunction.I, ChordFunction.IV, ChordFunction.V -> 4
+        ChordFunction.II, ChordFunction.III, ChordFunction.VI -> 3
+    }
 }
+
+private fun leftHandFifthMidi(chord: ChordFunction): Int = leftHandRootMidi(chord) + 7
 
 private fun noteFromMidi(
     midi: Int,
