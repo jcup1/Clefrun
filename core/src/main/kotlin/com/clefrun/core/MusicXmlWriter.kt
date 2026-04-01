@@ -13,6 +13,7 @@ object MusicXmlWriter {
         xml.append("  <part id=\"P1\">").append('\n')
 
         exercise.bars.forEachIndexed { index, bar ->
+            val accidentalStateByPitch = mutableMapOf<AccidentalKey, Int>()
             xml.append("    <measure number=\"${bar.number}\">").append('\n')
 
             if (index == 0) {
@@ -37,11 +38,11 @@ object MusicXmlWriter {
                 xml.append("      </attributes>").append('\n')
             }
 
-            bar.rightHand.forEach { note -> appendNote(xml, note) }
+            bar.rightHand.forEach { note -> appendNote(xml, note, accidentalStateByPitch) }
             xml.append("      <backup>").append('\n')
             xml.append("        <duration>${exercise.beats}</duration>").append('\n')
             xml.append("      </backup>").append('\n')
-            bar.leftHand.forEach { note -> appendNote(xml, note) }
+            bar.leftHand.forEach { note -> appendNote(xml, note, accidentalStateByPitch) }
 
             if (index == exercise.bars.lastIndex) {
                 xml.append("      <barline location=\"right\">").append('\n')
@@ -57,21 +58,34 @@ object MusicXmlWriter {
         return xml.toString()
     }
 
-    private fun appendNote(xml: StringBuilder, note: NoteEvent) {
+    private fun appendNote(
+        xml: StringBuilder,
+        note: NoteEvent,
+        accidentalStateByPitch: MutableMap<AccidentalKey, Int>
+    ) {
         xml.append("      <note>").append('\n')
         var accidental: String? = null
         if (note.isRest) {
             xml.append("        <rest/>").append('\n')
         } else {
             val pitch = requireNotNull(note.pitch) { "Non-rest note must include pitch." }
+            val accidentalKey = AccidentalKey(
+                step = pitch.step,
+                octave = pitch.octave,
+                staff = note.staff
+            )
+            accidental = accidentalSymbolForDisplay(
+                currentAlter = pitch.alter,
+                previousAlter = accidentalStateByPitch[accidentalKey]
+            )
+
             xml.append("        <pitch>").append('\n')
             xml.append("          <step>${pitch.step.name}</step>").append('\n')
             xml.append("          <alter>${pitch.alter}</alter>").append('\n')
             xml.append("          <octave>${pitch.octave}</octave>").append('\n')
             xml.append("        </pitch>").append('\n')
-            if (pitch.alter != 0) {
-                accidental = if (pitch.alter > 0) "sharp" else "flat"
-            }
+
+            accidentalStateByPitch[accidentalKey] = pitch.alter
         }
         xml.append("        <duration>${note.duration.beats}</duration>").append('\n')
         xml.append("        <type>${note.duration.musicXmlType}</type>").append('\n')
@@ -82,4 +96,20 @@ object MusicXmlWriter {
         xml.append("        <staff>${note.staff}</staff>").append('\n')
         xml.append("      </note>").append('\n')
     }
+
+    private fun accidentalSymbolForDisplay(currentAlter: Int, previousAlter: Int?): String? {
+        if (previousAlter == currentAlter) return null
+        return when (currentAlter) {
+            1 -> "sharp"
+            -1 -> "flat"
+            0 -> if (previousAlter == null) null else "natural"
+            else -> error("Unexpected alter value: $currentAlter")
+        }
+    }
 }
+
+private data class AccidentalKey(
+    val step: Step,
+    val octave: Int,
+    val staff: Int
+)

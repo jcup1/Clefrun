@@ -74,6 +74,7 @@ import com.clefrun.app.ui.theme.Stroke
 import com.clefrun.app.ui.theme.TextPrimary
 import com.clefrun.app.ui.theme.TextSecondary
 import com.clefrun.app.ui.theme.WarmAccent
+import com.clefrun.core.Difficulty
 import com.clefrun.core.MusicXmlWriter
 import com.clefrun.core.RuleBasedGenerator
 import kotlinx.coroutines.launch
@@ -101,12 +102,19 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun ScoreWebView(
     regenerateSignal: Long,
+    difficulty: Difficulty,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     var pageLoaded by remember { mutableStateOf(false) }
     var seedCounter by remember { mutableLongStateOf(2L) }
-    var pendingXml by remember { mutableStateOf<String?>(generateExerciseXml(1L)) }
+    var pendingXml by remember { mutableStateOf<String?>(generateExerciseXml(1L, difficulty)) }
+
+    LaunchedEffect(difficulty, pageLoaded) {
+        if (!pageLoaded) {
+            pendingXml = generateExerciseXml(1L, difficulty)
+        }
+    }
 
     val webView = remember(context) {
         WebView(context).apply {
@@ -145,7 +153,7 @@ private fun ScoreWebView(
 
     LaunchedEffect(regenerateSignal) {
         if (regenerateSignal == 0L) return@LaunchedEffect
-        val xml = generateExerciseXml(seedCounter)
+        val xml = generateExerciseXml(seedCounter, difficulty)
         seedCounter += 1
         if (pageLoaded) {
             renderMusicXml(webView, xml)
@@ -168,8 +176,8 @@ private fun ScoreWebView(
     }
 }
 
-private fun generateExerciseXml(seed: Long): String {
-    val exercise = RuleBasedGenerator.generate(seed)
+private fun generateExerciseXml(seed: Long, difficulty: Difficulty): String {
+    val exercise = RuleBasedGenerator.generate(seed, difficulty)
     return MusicXmlWriter.write(exercise)
 }
 
@@ -196,7 +204,7 @@ fun ScoreRenderScreen(
     onRegenerate: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var selectedDifficulty by remember { mutableStateOf(DifficultyUi.EASY) }
+    var selectedDifficulty by remember { mutableStateOf(Difficulty.EASY) }
     var tempo by remember { mutableFloatStateOf(0.55f) }
 
     val scaffoldState = rememberBottomSheetScaffoldState(
@@ -241,7 +249,7 @@ fun ScoreRenderScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(AppBackground)
-                .padding(innerPadding)
+                .padding(top = innerPadding.calculateTopPadding())
         ) {
             TopOverlayBar(
                 onNewClick = onRegenerate,
@@ -268,6 +276,7 @@ fun ScoreRenderScreen(
             ) {
                 ScoreWebView(
                     regenerateSignal = regenerateSignal,
+                    difficulty = selectedDifficulty,
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -383,8 +392,8 @@ private fun OptionsButton(
 
 @Composable
 private fun OptionsSheetContent(
-    selectedDifficulty: DifficultyUi,
-    onDifficultySelected: (DifficultyUi) -> Unit,
+    selectedDifficulty: Difficulty,
+    onDifficultySelected: (Difficulty) -> Unit,
     tempo: Float,
     onTempoChange: (Float) -> Unit,
     modifier: Modifier = Modifier,
@@ -445,7 +454,7 @@ private fun OptionsSheetContent(
                 )
 
                 Text(
-                    text = "Difficulty and tempo controls are preview-only for now.",
+                    text = "Tempo is preview-only for now.",
                     color = TextSecondary,
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(top = 8.dp)
@@ -459,12 +468,11 @@ private fun OptionsSheetContent(
 
 @Composable
 private fun DifficultySelector(
-    selected: DifficultyUi,
-    onSelected: (DifficultyUi) -> Unit,
+    selected: Difficulty,
+    onSelected: (Difficulty) -> Unit,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true,
 ) {
-    val options = DifficultyUi.entries
+    val options = Difficulty.entries
 
     SingleChoiceSegmentedButtonRow(
         modifier = modifier.fillMaxWidth()
@@ -473,7 +481,6 @@ private fun DifficultySelector(
             SegmentedButton(
                 selected = selected == option,
                 onClick = { onSelected(option) },
-                enabled = enabled,
                 shape = SegmentedButtonDefaults.itemShape(
                     index = index,
                     count = options.size
@@ -497,12 +504,6 @@ private fun DifficultySelector(
     }
 }
 
-private enum class DifficultyUi(val label: String) {
-    EASY("Easy"),
-    MEDIUM("Medium"),
-    HARD("Liszt"),
-}
-
 @Composable
 private fun AndroidWebView(webView: WebView, modifier: Modifier = Modifier) {
     androidx.compose.ui.viewinterop.AndroidView(
@@ -510,3 +511,10 @@ private fun AndroidWebView(webView: WebView, modifier: Modifier = Modifier) {
         modifier = modifier
     )
 }
+
+private val Difficulty.label: String
+    get() = when (this) {
+        Difficulty.EASY -> "Easy"
+        Difficulty.MEDIUM -> "Medium"
+        Difficulty.HARD -> "Hard"
+    }

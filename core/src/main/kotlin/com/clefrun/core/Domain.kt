@@ -7,6 +7,12 @@ data class Exercise(
     val keyFifths: Int = 0
 )
 
+enum class Difficulty {
+    EASY,
+    MEDIUM,
+    HARD
+}
+
 data class Bar(
     val number: Int,
     val chord: ChordFunction,

@@ -7,19 +7,23 @@ import org.junit.Test
 
 class RuleBasedGeneratorTest {
     @Test
-    fun generatedExerciseHas4Bars() {
-        val exercise = RuleBasedGenerator.generate(seed = 42L)
-        assertEquals(4, exercise.bars.size)
+    fun generatedExerciseHas8BarsForAllDifficulties() {
+        Difficulty.entries.forEach { difficulty ->
+            val exercise = RuleBasedGenerator.generate(seed = 42L, difficulty = difficulty)
+            assertEquals(8, exercise.bars.size)
+        }
     }
 
     @Test
     fun eachBarSumsTo4Beats() {
         val seeds = listOf(1L, 2L, 42L, 100L)
-        seeds.forEach { seed ->
-            val exercise = RuleBasedGenerator.generate(seed)
-            exercise.bars.forEach { bar ->
-                assertEquals(4, bar.rightHand.sumOf { it.duration.beats })
-                assertEquals(4, bar.leftHand.sumOf { it.duration.beats })
+        Difficulty.entries.forEach { difficulty ->
+            seeds.forEach { seed ->
+                val exercise = RuleBasedGenerator.generate(seed = seed, difficulty = difficulty)
+                exercise.bars.forEach { bar ->
+                    assertEquals(4, bar.rightHand.sumOf { it.duration.beats })
+                    assertEquals(4, bar.leftHand.sumOf { it.duration.beats })
+                }
             }
         }
     }
@@ -28,7 +32,7 @@ class RuleBasedGeneratorTest {
     fun accidentalRhNotesResolveBySemitoneIntoChordTone() {
         val seeds = (1L..150L).toList()
         seeds.forEach { seed ->
-            val exercise = RuleBasedGenerator.generate(seed)
+            val exercise = RuleBasedGenerator.generate(seed = seed, difficulty = Difficulty.HARD)
             exercise.bars.forEach { bar ->
                 bar.rightHand.forEachIndexed { index, note ->
                     val pitch = note.pitch ?: return@forEachIndexed
@@ -54,7 +58,7 @@ class RuleBasedGeneratorTest {
     fun leftHandRootDoesNotRepeatExcessivelyAcrossBars() {
         val seeds = (1L..120L).toList()
         seeds.forEach { seed ->
-            val exercise = RuleBasedGenerator.generate(seed)
+            val exercise = RuleBasedGenerator.generate(seed = seed, difficulty = Difficulty.MEDIUM)
             val roots = exercise.bars.map { toMidi(requireNotNull(it.leftHand.first().pitch)) }
             var consecutiveRepeats = 0
             for (i in 1 until roots.size) {
@@ -71,7 +75,7 @@ class RuleBasedGeneratorTest {
     fun rightHandDoesNotContainLongRunsOfSamePitch() {
         val seeds = (1L..120L).toList()
         seeds.forEach { seed ->
-            val exercise = RuleBasedGenerator.generate(seed)
+            val exercise = RuleBasedGenerator.generate(seed = seed, difficulty = Difficulty.MEDIUM)
             val rhMidis = exercise.bars
                 .flatMap { it.rightHand }
                 .map { toMidi(requireNotNull(it.pitch)) }
@@ -91,8 +95,8 @@ class RuleBasedGeneratorTest {
 
     @Test
     fun generatedExerciseStillMeetsDurationAndWriterConstraints() {
-        val exercise = RuleBasedGenerator.generate(seed = 77L)
-        assertEquals(4, exercise.bars.size)
+        val exercise = RuleBasedGenerator.generate(seed = 77L, difficulty = Difficulty.MEDIUM)
+        assertEquals(8, exercise.bars.size)
         exercise.bars.forEach { bar ->
             assertEquals(4, bar.rightHand.sumOf { it.duration.beats })
             assertEquals(4, bar.leftHand.sumOf { it.duration.beats })
@@ -102,7 +106,32 @@ class RuleBasedGeneratorTest {
         assertTrue(xml.startsWith("<?xml"))
         assertTrue(xml.contains("<score-partwise"))
         assertTrue(xml.contains("<part id=\"P1\">"))
-        assertEquals(4, "<measure number=\"".toRegex().findAll(xml).count())
+        assertEquals(8, "<measure number=\"".toRegex().findAll(xml).count())
+    }
+
+    @Test
+    fun harderDifficultiesProduceMoreMotionAndAccidentals() {
+        val seeds = (1L..24L).toList()
+
+        val easyExercises = seeds.map { RuleBasedGenerator.generate(seed = it, difficulty = Difficulty.EASY) }
+        val mediumExercises = seeds.map { RuleBasedGenerator.generate(seed = it, difficulty = Difficulty.MEDIUM) }
+        val hardExercises = seeds.map { RuleBasedGenerator.generate(seed = it, difficulty = Difficulty.HARD) }
+
+        val easyAccidentals = easyExercises.sumOf { countAccidentals(it) }
+        val mediumAccidentals = mediumExercises.sumOf { countAccidentals(it) }
+        val hardAccidentals = hardExercises.sumOf { countAccidentals(it) }
+
+        assertEquals(0, easyAccidentals)
+        assertTrue("Medium should introduce accidentals", mediumAccidentals > easyAccidentals)
+        assertTrue("Hard should introduce at least as many accidentals as medium", hardAccidentals >= mediumAccidentals)
+
+        val easyRhEvents = easyExercises.sumOf { countRightHandEvents(it) }
+        val hardRhEvents = hardExercises.sumOf { countRightHandEvents(it) }
+        assertTrue("Hard should be denser than easy", hardRhEvents > easyRhEvents)
+
+        val easyRange = easyExercises.maxOf { rightHandSpan(it) }
+        val hardRange = hardExercises.maxOf { rightHandSpan(it) }
+        assertTrue("Hard should cover a wider RH span than easy", hardRange > easyRange)
     }
 
     private fun isChordTone(pitch: Pitch, chord: ChordFunction): Boolean {
@@ -121,6 +150,24 @@ class RuleBasedGeneratorTest {
     private fun toMidi(pitch: Pitch): Int {
         val base = (pitch.octave + 1) * 12
         return base + stepToPitchClass(pitch.step) + pitch.alter
+    }
+
+    private fun countAccidentals(exercise: Exercise): Int {
+        return exercise.bars
+            .flatMap { it.rightHand }
+            .count { note -> note.pitch?.alter?.let { it != 0 } == true }
+    }
+
+    private fun countRightHandEvents(exercise: Exercise): Int {
+        return exercise.bars.sumOf { it.rightHand.size }
+    }
+
+    private fun rightHandSpan(exercise: Exercise): Int {
+        val midis = exercise.bars
+            .flatMap { it.rightHand }
+            .map { toMidi(requireNotNull(it.pitch)) }
+        if (midis.isEmpty()) return 0
+        return midis.maxOrNull()!! - midis.minOrNull()!!
     }
 
     private fun stepToPitchClass(step: Step): Int {
