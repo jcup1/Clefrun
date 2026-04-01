@@ -105,10 +105,8 @@ private fun ScoreWebView(
 ) {
     val context = LocalContext.current
     var pageLoaded by remember { mutableStateOf(false) }
-    var seedCounter by remember { mutableLongStateOf(1L) }
-    var pendingXml by remember {
-        mutableStateOf<String?>(generateExerciseXml(seedCounter).also { seedCounter += 1 })
-    }
+    var seedCounter by remember { mutableLongStateOf(2L) }
+    var pendingXml by remember { mutableStateOf<String?>(generateExerciseXml(1L)) }
 
     val webView = remember(context) {
         WebView(context).apply {
@@ -422,6 +420,7 @@ private fun OptionsSheetContent(
                 DifficultySelector(
                     selected = selectedDifficulty,
                     onSelected = onDifficultySelected,
+                    enabled = false,
                     modifier = Modifier.padding(top = 12.dp)
                 )
 
@@ -439,11 +438,19 @@ private fun OptionsSheetContent(
                 Slider(
                     value = tempo,
                     onValueChange = onTempoChange,
+                    enabled = false,
                     colors = SliderDefaults.colors(
                         thumbColor = WarmAccent,
                         activeTrackColor = WarmAccent,
                         inactiveTrackColor = Divider
                     )
+                )
+
+                Text(
+                    text = "Difficulty and tempo controls are preview-only for now.",
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 8.dp)
                 )
             }
         }
@@ -453,9 +460,10 @@ private fun OptionsSheetContent(
 }
 
 @Composable
-fun DifficultySelector(
+private fun DifficultySelector(
     selected: DifficultyUi,
     onSelected: (DifficultyUi) -> Unit,
+    enabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     val options = DifficultyUi.entries
@@ -467,6 +475,7 @@ fun DifficultySelector(
             SegmentedButton(
                 selected = selected == option,
                 onClick = { onSelected(option) },
+                enabled = enabled,
                 shape = SegmentedButtonDefaults.itemShape(
                     index = index,
                     count = options.size
@@ -490,7 +499,7 @@ fun DifficultySelector(
     }
 }
 
-enum class DifficultyUi(val label: String) {
+private enum class DifficultyUi(val label: String) {
     EASY("Easy"),
     MEDIUM("Medium"),
     HARD("Liszt"),
