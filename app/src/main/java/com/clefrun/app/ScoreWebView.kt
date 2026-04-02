@@ -21,9 +21,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import com.clefrun.core.Difficulty
-import com.clefrun.core.MusicXmlWriter
-import com.clefrun.core.RuleBasedGenerator
 import org.json.JSONObject
 
 @SuppressLint("SetJavaScriptEnabled")
@@ -34,7 +31,7 @@ fun ScoreWebView(
 ) {
     val context = LocalContext.current
     var pageLoaded by remember { mutableStateOf(false) }
-    var pendingXml by remember { mutableStateOf<String?>(musicXml) }
+    var lastRenderedXml by remember { mutableStateOf<String?>(null) }
 
     val webView = remember(context) {
         WebView(context).apply {
@@ -55,10 +52,6 @@ fun ScoreWebView(
 
                 override fun onPageFinished(view: WebView?, url: String?) {
                     pageLoaded = true
-                    pendingXml?.let { xml ->
-                        pendingXml = null
-                        renderMusicXml(this@apply, xml)
-                    }
                 }
             }
             loadUrl(SCORE_HTML_ASSET_URL)
@@ -72,11 +65,9 @@ fun ScoreWebView(
     }
 
     LaunchedEffect(musicXml, pageLoaded) {
-        if (pageLoaded) {
-            pendingXml = null
+        if (pageLoaded && musicXml.isNotBlank() && musicXml != lastRenderedXml) {
             renderMusicXml(webView, musicXml)
-        } else {
-            pendingXml = musicXml
+            lastRenderedXml = musicXml
         }
     }
 
@@ -92,11 +83,6 @@ fun ScoreWebView(
                 .fillMaxSize()
         )
     }
-}
-
-internal fun generateExerciseXml(seed: Long, difficulty: Difficulty): String {
-    val exercise = RuleBasedGenerator.generate(seed, difficulty)
-    return MusicXmlWriter.write(exercise)
 }
 
 private fun renderMusicXml(webView: WebView, xmlString: String) {
