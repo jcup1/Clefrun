@@ -1,12 +1,7 @@
 package com.clefrun.app
 
-import android.annotation.SuppressLint
 import android.content.res.Configuration
-import android.net.Uri
 import android.os.Bundle
-import android.webkit.WebResourceRequest
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -56,17 +51,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.ViewModel
-import androidx.compose.runtime.mutableLongStateOf
 import com.clefrun.app.ui.theme.AppBackground
 import com.clefrun.app.ui.theme.Charcoal
 import com.clefrun.app.ui.theme.ClefrunTheme
@@ -79,10 +70,7 @@ import com.clefrun.app.ui.theme.TextPrimary
 import com.clefrun.app.ui.theme.TextSecondary
 import com.clefrun.app.ui.theme.WarmAccent
 import com.clefrun.core.Difficulty
-import com.clefrun.core.MusicXmlWriter
-import com.clefrun.core.RuleBasedGenerator
 import kotlinx.coroutines.launch
-import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
     private val scoreViewModel: ScoreViewModel by viewModels()
@@ -99,25 +87,6 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
-    }
-}
-
-class ScoreViewModel : ViewModel() {
-    private var nextSeed by mutableLongStateOf(2L)
-
-    var selectedDifficulty by mutableStateOf(Difficulty.EASY)
-        private set
-
-    var currentMusicXml by mutableStateOf(generateExerciseXml(seed = 1L, difficulty = Difficulty.EASY))
-        private set
-
-    fun onDifficultySelected(difficulty: Difficulty) {
-        selectedDifficulty = difficulty
-    }
-
-    fun onNewExercise() {
-        currentMusicXml = generateExerciseXml(seed = nextSeed, difficulty = selectedDifficulty)
-        nextSeed += 1
     }
 }
 
@@ -262,95 +231,6 @@ private fun ScoreSurface(
         )
     }
 }
-
-@SuppressLint("SetJavaScriptEnabled")
-@Composable
-private fun ScoreWebView(
-    musicXml: String,
-    modifier: Modifier = Modifier
-) {
-    val context = LocalContext.current
-    var pageLoaded by remember { mutableStateOf(false) }
-    var pendingXml by remember { mutableStateOf<String?>(musicXml) }
-
-    val webView = remember(context) {
-        WebView(context).apply {
-            settings.javaScriptEnabled = true
-            settings.domStorageEnabled = true
-            webViewClient = object : WebViewClient() {
-                override fun shouldOverrideUrlLoading(
-                    view: WebView?,
-                    request: WebResourceRequest?
-                ): Boolean {
-                    return !isAllowedNavigation(request?.url)
-                }
-
-                @Deprecated("Deprecated in Java")
-                override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
-                    return !isAllowedNavigation(url?.let(Uri::parse))
-                }
-
-                override fun onPageFinished(view: WebView?, url: String?) {
-                    pageLoaded = true
-                    pendingXml?.let { xml ->
-                        pendingXml = null
-                        renderMusicXml(this@apply, xml)
-                    }
-                }
-            }
-            loadUrl(SCORE_HTML_ASSET_URL)
-        }
-    }
-
-    DisposableEffect(webView) {
-        onDispose {
-            webView.destroy()
-        }
-    }
-
-    LaunchedEffect(musicXml, pageLoaded) {
-        if (pageLoaded) {
-            pendingXml = null
-            renderMusicXml(webView, musicXml)
-        } else {
-            pendingXml = musicXml
-        }
-    }
-
-    Box(
-        modifier = modifier
-            .background(Color.White)
-            .fillMaxSize()
-    ) {
-        AndroidWebView(
-            webView = webView,
-            modifier = Modifier
-                .padding(top = 16.dp)
-                .fillMaxSize()
-        )
-    }
-}
-
-private fun generateExerciseXml(seed: Long, difficulty: Difficulty): String {
-    val exercise = RuleBasedGenerator.generate(seed, difficulty)
-    return MusicXmlWriter.write(exercise)
-}
-
-private fun renderMusicXml(webView: WebView, xmlString: String) {
-    val javascript = "window.renderMusicXml(${JSONObject.quote(xmlString)});"
-    webView.evaluateJavascript(javascript, null)
-}
-
-private fun isAllowedNavigation(uri: Uri?): Boolean {
-    if (uri == null) return false
-    val isAsset = uri.toString() == SCORE_HTML_ASSET_URL
-    val isAllowedCdn = uri.scheme == "https" && uri.host == ALLOWED_CDN_HOST
-    val isAboutBlank = uri.toString() == "about:blank"
-    return isAsset || isAllowedCdn || isAboutBlank
-}
-
-private const val SCORE_HTML_ASSET_URL = "file:///android_asset/score.html"
-private const val ALLOWED_CDN_HOST = "cdn.jsdelivr.net"
 
 @Composable
 private fun TopOverlayBar(
@@ -570,14 +450,6 @@ private fun DifficultySelector(
             )
         }
     }
-}
-
-@Composable
-private fun AndroidWebView(webView: WebView, modifier: Modifier = Modifier) {
-    androidx.compose.ui.viewinterop.AndroidView(
-        factory = { webView },
-        modifier = modifier
-    )
 }
 
 private val Difficulty.label: String
