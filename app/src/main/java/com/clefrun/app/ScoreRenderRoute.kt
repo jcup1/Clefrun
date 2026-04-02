@@ -10,9 +10,13 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.rememberBottomSheetScaffoldState
@@ -23,6 +27,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
@@ -44,6 +49,7 @@ fun ScoreRenderScreen(
     if (isLandscape) {
         LandscapeScoreScreen(
             musicXml = scoreViewModel.currentMusicXml,
+            onNextExercise = scoreViewModel::onNewExercise,
             modifier = modifier
         )
     } else {
@@ -141,6 +147,7 @@ private fun PortraitScoreScreen(
 @Composable
 private fun LandscapeScoreScreen(
     musicXml: String,
+    onNextExercise: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -149,11 +156,45 @@ private fun LandscapeScoreScreen(
             .background(AppBackground)
             .statusBarsPadding()
             .navigationBarsPadding()
-            .padding(10.dp)
+            .padding(horizontal = 6.dp, vertical = 6.dp)
     ) {
         ScoreSurface(
             musicXml = musicXml,
             modifier = Modifier.fillMaxSize()
         )
+
+        LandscapeNextButton(
+            onClick = onNextExercise,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 8.dp, bottom = 8.dp)
+        )
+    }
+}
+
+@Composable
+private fun LandscapeNextButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        onClick = onClick,
+        shape = CircleShape,
+        color = Paper,
+        contentColor = Charcoal,
+        tonalElevation = 0.dp,
+        shadowElevation = 6.dp,
+        modifier = modifier
+    ) {
+        Box(
+            modifier = Modifier.size(44.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Refresh,
+                contentDescription = "Next exercise",
+                tint = Charcoal
+            )
+        }
     }
 }
