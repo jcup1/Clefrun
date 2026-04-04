@@ -106,7 +106,7 @@ internal fun PracticeModeCard(
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
-                        contentDescription = "Enter",
+                        contentDescription = null,
                         tint = Charcoal
                     )
                 }

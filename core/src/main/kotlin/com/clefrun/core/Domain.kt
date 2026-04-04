@@ -6,8 +6,7 @@ data class Exercise(
     val beatType: Int = 4,
     val keyFifths: Int = 0,
     val divisions: Int = 2,
-    val showTimeSignature: Boolean = true,
-    val pageBottomMarginTenths: Int? = null
+    val showTimeSignature: Boolean = true
 )
 
 enum class Difficulty {
@@ -23,9 +22,7 @@ data class Bar(
     val leftHand: List<NoteEvent>,
     val staffLayout: StaffLayout = StaffLayout.GRAND_STAFF,
     val sectionLabel: String? = null,
-    val sectionLabelOffsetX: Int = 0,
-    val startsNewSystem: Boolean = false,
-    val systemDistance: Int? = null
+    val sectionLabelOffsetX: Int = 0
 )
 
 data class NoteEvent(
@@ -57,13 +54,15 @@ data class NoteEvent(
 
 enum class Duration(
     val beats: Int,
-    val musicXmlType: String,
-    val divisions: Int
+    val musicXmlType: String
 ) {
-    EIGHTH(0, "eighth", 1),
-    QUARTER(1, "quarter", 2),
-    HALF(2, "half", 4),
-    WHOLE(4, "whole", 8)
+    QUARTER(1, "quarter"),
+    HALF(2, "half"),
+    WHOLE(4, "whole");
+
+    init {
+        require(beats > 0) { "Duration beats must be positive." }
+    }
 }
 
 enum class StaffLayout {

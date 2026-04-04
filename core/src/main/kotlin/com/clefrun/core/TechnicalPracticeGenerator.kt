@@ -40,8 +40,7 @@ object TechnicalPracticeGenerator {
             bars = bars,
             keyFifths = template.keyFifths,
             divisions = 2,
-            showTimeSignature = false,
-            pageBottomMarginTenths = 220
+            showTimeSignature = false
         )
     }
 }
@@ -116,9 +115,7 @@ private fun cadenceBars(
             leftHand = template.firstBarLeftHand,
             staffLayout = StaffLayout.GRAND_STAFF,
             sectionLabel = sectionLabel,
-            sectionLabelOffsetX = sectionLabelOffsetX,
-            startsNewSystem = true,
-            systemDistance = 150
+            sectionLabelOffsetX = sectionLabelOffsetX
         ),
         Bar(
             number = 0,

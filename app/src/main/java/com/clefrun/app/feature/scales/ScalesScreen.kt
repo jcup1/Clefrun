@@ -250,7 +250,7 @@ private fun ScalesOptionsSheet(
                         labelColor = TextSecondary
                     ),
                     border = FilterChipDefaults.filterChipBorder(
-                        enabled = true,
+                        enabled = enabled,
                         selected = mode == selectedMode,
                         borderColor = Stroke,
                         selectedBorderColor = Stroke
@@ -294,7 +294,7 @@ private fun ScalesOptionsSheet(
                         labelColor = TextSecondary
                     ),
                     border = FilterChipDefaults.filterChipBorder(
-                        enabled = true,
+                        enabled = enabled,
                         selected = tonic == selectedTonic,
                         borderColor = Stroke,
                         selectedBorderColor = Stroke

@@ -51,8 +51,17 @@
           overflow-y: auto;
         }
 
+        #score-content {
+          width: 100%;
+          min-height: 100%;
+        }
+
         #score-host {
           width: 100%;
+        }
+
+        #score-bottom-spacer {
+          height: 70px;
         }
 
         #status {
@@ -87,7 +96,10 @@
 <div id="reader">
     <div id="status"></div>
     <div id="score">
-        <div id="score-host"></div>
+        <div id="score-content">
+            <div id="score-host"></div>
+            <div id="score-bottom-spacer"></div>
+        </div>
     </div>
 </div>
 

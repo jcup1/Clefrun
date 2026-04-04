@@ -5,18 +5,6 @@ object MusicXmlWriter {
         val xml = StringBuilder()
         xml.append("""<?xml version="1.0" encoding="UTF-8" standalone="no"?>""").append('\n')
         xml.append("<score-partwise version=\"3.1\">").append('\n')
-        if (exercise.pageBottomMarginTenths != null) {
-            xml.append("  <defaults>").append('\n')
-            xml.append("    <page-layout>").append('\n')
-            xml.append("      <page-margins type=\"both\">").append('\n')
-            xml.append("        <left-margin>0</left-margin>").append('\n')
-            xml.append("        <right-margin>0</right-margin>").append('\n')
-            xml.append("        <top-margin>0</top-margin>").append('\n')
-            xml.append("        <bottom-margin>${exercise.pageBottomMarginTenths}</bottom-margin>").append('\n')
-            xml.append("      </page-margins>").append('\n')
-            xml.append("    </page-layout>").append('\n')
-            xml.append("  </defaults>").append('\n')
-        }
         xml.append("  <part-list>").append('\n')
         xml.append("    <score-part id=\"P1\">").append('\n')
         xml.append("      <part-name>Piano</part-name>").append('\n')
@@ -27,18 +15,6 @@ object MusicXmlWriter {
         exercise.bars.forEachIndexed { index, bar ->
             val accidentalStateByPitch = mutableMapOf<AccidentalKey, Int>()
             xml.append("    <measure number=\"${bar.number}\">").append('\n')
-
-            if (bar.startsNewSystem) {
-                if (bar.systemDistance != null) {
-                    xml.append("      <print new-system=\"yes\">").append('\n')
-                    xml.append("        <system-layout>").append('\n')
-                    xml.append("          <system-distance>${bar.systemDistance}</system-distance>").append('\n')
-                    xml.append("        </system-layout>").append('\n')
-                    xml.append("      </print>").append('\n')
-                } else {
-                    xml.append("      <print new-system=\"yes\"/>").append('\n')
-                }
-            }
 
             val previousLayout = exercise.bars.getOrNull(index - 1)?.staffLayout
             val writeAttributes = index == 0 || previousLayout != bar.staffLayout
@@ -89,12 +65,12 @@ object MusicXmlWriter {
                 xml.append("      </direction>").append('\n')
             }
 
-            bar.rightHand.forEach { note -> appendNote(xml, note, accidentalStateByPitch) }
+            bar.rightHand.forEach { note -> appendNote(xml, note, accidentalStateByPitch, exercise.divisions) }
             if (bar.leftHand.isNotEmpty()) {
                 xml.append("      <backup>").append('\n')
                 xml.append("        <duration>${exercise.beats * exercise.divisions}</duration>").append('\n')
                 xml.append("      </backup>").append('\n')
-                bar.leftHand.forEach { note -> appendNote(xml, note, accidentalStateByPitch) }
+                bar.leftHand.forEach { note -> appendNote(xml, note, accidentalStateByPitch, exercise.divisions) }
             }
 
             if (index == exercise.bars.lastIndex) {
@@ -114,7 +90,8 @@ object MusicXmlWriter {
     private fun appendNote(
         xml: StringBuilder,
         note: NoteEvent,
-        accidentalStateByPitch: MutableMap<AccidentalKey, Int>
+        accidentalStateByPitch: MutableMap<AccidentalKey, Int>,
+        divisionsPerQuarter: Int
     ) {
         val pitches = buildList {
             note.pitch?.let { add(it) }
@@ -123,7 +100,7 @@ object MusicXmlWriter {
         if (note.isRest) {
             xml.append(noteOpenTag(note)).append('\n')
             xml.append("        <rest/>").append('\n')
-            xml.append("        <duration>${note.duration.divisions}</duration>").append('\n')
+            xml.append("        <duration>${note.duration.beats * divisionsPerQuarter}</duration>").append('\n')
             xml.append("        <type>${note.duration.musicXmlType}</type>").append('\n')
             xml.append("        <voice>${note.voice}</voice>").append('\n')
             xml.append("        <staff>${note.staff}</staff>").append('\n')
@@ -151,7 +128,7 @@ object MusicXmlWriter {
             xml.append("          <alter>${pitch.alter}</alter>").append('\n')
             xml.append("          <octave>${pitch.octave}</octave>").append('\n')
             xml.append("        </pitch>").append('\n')
-            xml.append("        <duration>${note.duration.divisions}</duration>").append('\n')
+            xml.append("        <duration>${note.duration.beats * divisionsPerQuarter}</duration>").append('\n')
             xml.append("        <type>${note.duration.musicXmlType}</type>").append('\n')
             if (accidental != null) {
                 xml.append("        <accidental>$accidental</accidental>").append('\n')

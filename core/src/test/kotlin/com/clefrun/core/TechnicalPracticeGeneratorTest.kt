@@ -22,8 +22,6 @@ class TechnicalPracticeGeneratorTest {
         assertEquals("Arpeggio", exercise.bars[8].sectionLabel)
         assertEquals(null, exercise.bars[12].sectionLabel)
         assertEquals("Cadence", exercise.bars[13].sectionLabel)
-        assertTrue(exercise.bars[13].startsNewSystem)
-        assertEquals(150, exercise.bars[13].systemDistance)
     }
 
     @Test
@@ -203,9 +201,7 @@ class TechnicalPracticeGeneratorTest {
         assertTrue(xml.contains("<staves>2</staves>"))
         assertEquals(hiddenRestCount, xml.split("<rest/>").size - 1)
         assertTrue(xml.contains("<time print-object=\"no\" symbol=\"none\">"))
-        assertTrue(xml.contains("<bottom-margin>220</bottom-margin>"))
-        assertTrue(cadenceMeasures.contains("<print new-system=\"yes\">"))
-        assertTrue(cadenceMeasures.contains("<system-distance>150</system-distance>"))
+        assertFalse(cadenceMeasures.contains("<print new-system=\"yes\">"))
     }
 
     private fun assertScaleFingerings(
