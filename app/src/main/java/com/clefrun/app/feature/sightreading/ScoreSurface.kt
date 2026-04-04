@@ -1,4 +1,4 @@
-package com.clefrun.app
+package com.clefrun.app.feature.sightreading
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -13,6 +13,7 @@ import com.clefrun.app.ui.theme.Paper
 @Composable
 internal fun ScoreSurface(
     musicXml: String,
+    showMeasureNumbers: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -22,6 +23,7 @@ internal fun ScoreSurface(
     ) {
         ScoreWebView(
             musicXml = musicXml,
+            showMeasureNumbers = showMeasureNumbers,
             modifier = Modifier.fillMaxSize()
         )
     }

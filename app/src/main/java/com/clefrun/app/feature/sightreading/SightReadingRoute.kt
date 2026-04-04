@@ -1,4 +1,4 @@
-package com.clefrun.app
+package com.clefrun.app.feature.sightreading
 
 import android.content.res.Configuration
 import androidx.compose.foundation.background
@@ -39,7 +39,7 @@ import com.clefrun.core.Difficulty
 import kotlinx.coroutines.launch
 
 @Composable
-fun ScoreRenderScreen(
+fun SightReadingRoute(
     scoreViewModel: ScoreViewModel,
     modifier: Modifier = Modifier,
 ) {
