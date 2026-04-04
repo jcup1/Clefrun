@@ -1,4 +1,4 @@
-package com.clefrun.app
+package com.clefrun.app.feature.sightreading
 
 import android.annotation.SuppressLint
 import android.net.Uri
@@ -25,13 +25,15 @@ import org.json.JSONObject
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-fun ScoreWebView(
+internal fun ScoreWebView(
     musicXml: String,
+    showMeasureNumbers: Boolean,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     var pageLoaded by remember { mutableStateOf(false) }
     var lastRenderedXml by remember { mutableStateOf<String?>(null) }
+    var lastRenderedMeasureNumbers by remember { mutableStateOf<Boolean?>(null) }
 
     val webView = remember(context) {
         WebView(context).apply {
@@ -64,10 +66,15 @@ fun ScoreWebView(
         }
     }
 
-    LaunchedEffect(musicXml, pageLoaded) {
-        if (pageLoaded && musicXml.isNotBlank() && musicXml != lastRenderedXml) {
-            renderMusicXml(webView, musicXml)
+    LaunchedEffect(musicXml, showMeasureNumbers, pageLoaded) {
+        if (
+            pageLoaded &&
+            musicXml.isNotBlank() &&
+            (musicXml != lastRenderedXml || showMeasureNumbers != lastRenderedMeasureNumbers)
+        ) {
+            renderMusicXml(webView, musicXml, showMeasureNumbers)
             lastRenderedXml = musicXml
+            lastRenderedMeasureNumbers = showMeasureNumbers
         }
     }
 
@@ -85,8 +92,12 @@ fun ScoreWebView(
     }
 }
 
-private fun renderMusicXml(webView: WebView, xmlString: String) {
-    val javascript = "window.renderMusicXml(${JSONObject.quote(xmlString)});"
+private fun renderMusicXml(
+    webView: WebView,
+    xmlString: String,
+    showMeasureNumbers: Boolean
+) {
+    val javascript = "window.renderMusicXml(${JSONObject.quote(xmlString)}, ${if (showMeasureNumbers) "true" else "false"});"
     webView.evaluateJavascript(javascript, null)
 }
 

@@ -1,4 +1,4 @@
-package com.clefrun.app
+package com.clefrun.app.feature.sightreading
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,15 +18,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.clefrun.app.ui.components.ClefRunLogo
 import com.clefrun.app.ui.theme.Charcoal
 import com.clefrun.app.ui.theme.Paper
-import com.clefrun.app.ui.theme.WarmAccent
 
 @Composable
 internal fun TopOverlayBar(
@@ -51,31 +48,6 @@ internal fun TopOverlayBar(
             OptionsButton(onClick = onOptionsClick)
         }
     }
-}
-
-@Composable
-private fun ClefRunLogo() {
-    Text(
-        text = buildAnnotatedString {
-            withStyle(
-                style = SpanStyle(
-                    color = Charcoal,
-                    fontWeight = FontWeight.Medium
-                )
-            ) {
-                append("Clef")
-            }
-            withStyle(
-                style = SpanStyle(
-                    color = WarmAccent,
-                    fontWeight = FontWeight.Medium
-                )
-            ) {
-                append("Run")
-            }
-        },
-        fontSize = 26.sp
-    )
 }
 
 @Composable

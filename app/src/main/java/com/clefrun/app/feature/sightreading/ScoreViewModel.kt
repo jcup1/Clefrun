@@ -1,4 +1,4 @@
-package com.clefrun.app
+package com.clefrun.app.feature.sightreading
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf

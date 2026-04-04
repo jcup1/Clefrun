@@ -1,105 +1,133 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Clefrun Score Renderer</title>
-  <script
-    src="https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@1.9.2/build/opensheetmusicdisplay.min.js"
-    integrity="sha384-ayd7AZGRW8a4B990AVWtFlMROQBEIG80Iv+jdk9ejqvApFYdZKlcxhe0PCdVDClg"
-    crossorigin="anonymous"></script>
-  <style>
-    :root {
-      color-scheme: light;
-      --stone: #ece7dc;
-      --paper: #fffaf0;
-      --ink: #2f2a24;
-      --line: #ddd4c2;
-      --error: #8f3526;
-      --accent: #2c596d;
-    }
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Clefrun Score Renderer</title>
+    <script
+            src="https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@1.9.2/build/opensheetmusicdisplay.min.js"
+            integrity="sha384-ayd7AZGRW8a4B990AVWtFlMROQBEIG80Iv+jdk9ejqvApFYdZKlcxhe0PCdVDClg"
+            crossorigin="anonymous"></script>
+    <style>
+        :root {
+          color-scheme: light;
+          --stone: #ece7dc;
+          --paper: #fffaf0;
+          --ink: #2f2a24;
+          --line: #ddd4c2;
+          --error: #8f3526;
+          --accent: #2c596d;
+        }
 
-    * {
-      box-sizing: border-box;
-    }
+        * {
+          box-sizing: border-box;
+        }
 
-    body {
-      margin: 0;
-      min-height: 100vh;
-      background: linear-gradient(180deg, #f5f1e7 0%, var(--stone) 100%);
-      color: var(--ink);
-      font-family: Georgia, "Times New Roman", serif;
-    }
+        html, body {
+          width: 100%;
+          height: 100%;
+        }
 
-    #reader {
-      width: 100vw;
-      height: 100vh;
-    }
+        body {
+          margin: 0;
+          background: linear-gradient(180deg, #f5f1e7 0%, var(--stone) 100%);
+          color: var(--ink);
+          font-family: Georgia, "Times New Roman", serif;
+        }
 
-    #score {
-      width: 100%;
-      height: 100%;
-      padding: 0;
-      border: 0;
-      border-radius: 0;
-      background: var(--paper);
-      overflow-x: auto;
-      overflow-y: auto;
-    }
+        #reader {
+          width: 100vw;
+          height: 100vh;
+        }
 
-    #status {
-      position: fixed;
-      top: 8px;
-      left: 10px;
-      max-width: 60vw;
-      padding: 4px 8px;
-      border-radius: 8px;
-      background: rgba(255, 250, 240, 0.86);
-      border: 1px solid rgba(44, 89, 109, 0.25);
-      font-size: 14px;
-      color: var(--accent);
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 180ms ease;
-    }
+        #score {
+          width: 100%;
+          height: 100%;
+          padding: 0;
+          border: 0;
+          border-radius: 0;
+          background: var(--paper);
+          overflow-x: auto;
+          overflow-y: auto;
+        }
 
-    #status.error {
-      color: var(--error);
-      font-weight: 600;
-      opacity: 1;
-    }
+        #score-content {
+          width: 100%;
+          min-height: 100%;
+        }
 
-    #status:not(:empty) {
-      opacity: 1;
-    }
-  </style>
+        #score-host {
+          width: 100%;
+        }
+
+        #score-bottom-spacer {
+          height: 70px;
+        }
+
+        #status {
+          position: fixed;
+          top: 8px;
+          left: 10px;
+          max-width: 60vw;
+          padding: 4px 8px;
+          border-radius: 8px;
+          background: rgba(255, 250, 240, 0.86);
+          border: 1px solid rgba(44, 89, 109, 0.25);
+          font-size: 14px;
+          color: var(--accent);
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 180ms ease;
+          z-index: 10;
+        }
+
+        #status.error {
+          color: var(--error);
+          font-weight: 600;
+          opacity: 1;
+        }
+
+        #status:not(:empty) {
+          opacity: 1;
+        }
+    </style>
 </head>
 <body>
-  <div id="reader">
+<div id="reader">
     <div id="status"></div>
-    <div id="score"></div>
-  </div>
-  <script>
-    const scoreContainer = document.getElementById("score");
+    <div id="score">
+        <div id="score-content">
+            <div id="score-host"></div>
+            <div id="score-bottom-spacer"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const scoreContainer = document.getElementById("score-host");
     const statusNode = document.getElementById("status");
     let osmd = null;
+    let currentMeasureNumberSetting = null;
 
     function setStatus(message, isError) {
       statusNode.textContent = message;
       statusNode.className = isError ? "error" : "";
     }
 
-    window.renderMusicXml = async function renderMusicXml(xmlString) {
+    window.renderMusicXml = async function renderMusicXml(xmlString, showMeasureNumbers = true) {
       try {
         if (!window.opensheetmusicdisplay || !window.opensheetmusicdisplay.OpenSheetMusicDisplay) {
           throw new Error("OpenSheetMusicDisplay failed to load. Check network access for the CDN script.");
         }
 
-        if (!osmd) {
+        if (!osmd || currentMeasureNumberSetting !== showMeasureNumbers) {
+          scoreContainer.innerHTML = "";
           osmd = new window.opensheetmusicdisplay.OpenSheetMusicDisplay(scoreContainer, {
             autoResize: true,
-            drawingParameters: "compacttight"
+            drawingParameters: "compacttight",
+            drawMeasureNumbers: showMeasureNumbers
           });
+          currentMeasureNumberSetting = showMeasureNumbers;
         }
 
         setStatus("Rendering score...", false);
@@ -111,6 +139,6 @@
         setStatus(error && error.message ? error.message : "Unknown rendering error.", true);
       }
     };
-  </script>
+</script>
 </body>
 </html>

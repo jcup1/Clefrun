@@ -1,4 +1,4 @@
-package com.clefrun.app
+package com.clefrun.app.feature.sightreading
 
 import com.clefrun.core.Difficulty
 import com.clefrun.core.MusicXmlWriter
