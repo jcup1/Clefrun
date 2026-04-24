@@ -1,6 +1,12 @@
 package com.clefrun.app.feature.scales
 
 import android.content.res.Configuration
+import androidx.annotation.VisibleForTesting
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.BottomSheetScaffold
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -29,13 +36,18 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.clefrun.app.feature.sightreading.ScoreSurface
 import com.clefrun.app.ui.components.ClefRunLogo
 import com.clefrun.app.ui.theme.AppBackground
@@ -48,6 +60,8 @@ import com.clefrun.app.ui.theme.TextPrimary
 import com.clefrun.app.ui.theme.TextSecondary
 import com.clefrun.core.PracticeMode
 import com.clefrun.core.PracticeTonic
+import kotlinx.collections.immutable.ImmutableSet
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -56,28 +70,45 @@ internal fun ScalesScreen(
     viewModel: ScalesViewModel,
     modifier: Modifier = Modifier,
 ) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val onErrorDismissed = viewModel::onErrorDismissed
 
     if (isLandscape) {
-        LandscapeScalesScreen(
-            musicXml = viewModel.currentMusicXml,
+        LandscapeScalesContent(
+            uiState = uiState,
+            onErrorDismissed = onErrorDismissed,
             modifier = modifier
         )
     } else {
-        PortraitScalesScreen(
-            viewModel = viewModel,
+        PortraitScalesContent(
+            uiState = uiState,
+            onModeSelected = viewModel::onModeSelected,
+            onTonicSelected = viewModel::onTonicSelected,
+            onErrorDismissed = onErrorDismissed,
             modifier = modifier
         )
+    }
+
+    uiState.error?.let { error ->
+        LaunchedEffect(error) {
+            delay(3000)
+            onErrorDismissed()
+        }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-private fun PortraitScalesScreen(
-    viewModel: ScalesViewModel,
+private fun PortraitScalesContent(
+    uiState: ScalesUiState,
+    onModeSelected: (PracticeMode) -> Unit,
+    onTonicSelected: (PracticeTonic) -> Unit,
+    onErrorDismissed: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+
     val scaffoldState = rememberBottomSheetScaffoldState(
         bottomSheetState = rememberStandardBottomSheetState(
             initialValue = SheetValue.PartiallyExpanded,
@@ -104,12 +135,12 @@ private fun PortraitScalesScreen(
         },
         sheetContent = {
             ScalesOptionsSheet(
-                selectedMode = viewModel.selectedMode,
-                selectedTonic = viewModel.selectedTonic,
-                onModeSelected = viewModel::onModeSelected,
-                onTonicSelected = viewModel::onTonicSelected,
-                isModeSupported = viewModel::isModeSupported,
-                isTonicSupported = viewModel::isTonicSupported,
+                selectedMode = uiState.selectedMode,
+                selectedTonic = uiState.selectedTonic,
+                onModeSelected = onModeSelected,
+                onTonicSelected = onTonicSelected,
+                supportedModes = uiState.supportedModes,
+                supportedTonics = uiState.supportedTonics,
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
@@ -137,22 +168,44 @@ private fun PortraitScalesScreen(
                 }
             )
 
-            ScoreSurface(
-                musicXml = viewModel.currentMusicXml,
-                showMeasureNumbers = false,
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
                     .padding(horizontal = 12.dp)
-                    .padding(bottom = 28.dp)
-            )
+                    .padding(bottom = 28.dp),
+            ) {
+
+                ScoreSurface(
+                    musicXml = uiState.currentMusicXml,
+                    showMeasureNumbers = false,
+                    modifier = Modifier.fillMaxSize()
+                )
+
+                ScalesErrorBanner(
+                    error = uiState.error,
+                    onDismissed = onErrorDismissed,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .zIndex(1f)
+                )
+
+                if (uiState.isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .zIndex(1f)
+                    )
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun LandscapeScalesScreen(
-    musicXml: String,
+private fun LandscapeScalesContent(
+    uiState: ScalesUiState,
+    onErrorDismissed: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -164,10 +217,19 @@ private fun LandscapeScalesScreen(
             .padding(horizontal = 6.dp, vertical = 6.dp)
     ) {
         ScoreSurface(
-            musicXml = musicXml,
+            musicXml = uiState.currentMusicXml,
             showMeasureNumbers = false,
             modifier = Modifier.fillMaxSize()
         )
+
+        ScalesErrorBanner(
+            error = uiState.error,
+            onDismissed = onErrorDismissed,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .zIndex(1f)
+        )
+
     }
 }
 
@@ -207,14 +269,15 @@ private fun ScalesTopOverlayBar(
     }
 }
 
+@VisibleForTesting
 @Composable
-private fun ScalesOptionsSheet(
+fun ScalesOptionsSheet(
     selectedMode: PracticeMode,
     selectedTonic: PracticeTonic,
     onModeSelected: (PracticeMode) -> Unit,
     onTonicSelected: (PracticeTonic) -> Unit,
-    isModeSupported: (PracticeMode) -> Boolean,
-    isTonicSupported: (PracticeTonic) -> Boolean,
+    supportedModes: ImmutableSet<PracticeMode>,
+    supportedTonics: ImmutableSet<PracticeTonic>,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -235,7 +298,7 @@ private fun ScalesOptionsSheet(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             PracticeMode.entries.forEach { mode ->
-                val enabled = isModeSupported(mode)
+                val enabled = mode in supportedModes
                 FilterChip(
                     selected = mode == selectedMode,
                     onClick = { onModeSelected(mode) },
@@ -279,7 +342,7 @@ private fun ScalesOptionsSheet(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             PracticeTonic.entries.forEach { tonic ->
-                val enabled = isTonicSupported(tonic)
+                val enabled = tonic in supportedTonics
                 FilterChip(
                     selected = tonic == selectedTonic,
                     onClick = { onTonicSelected(tonic) },
@@ -298,7 +361,8 @@ private fun ScalesOptionsSheet(
                         selected = tonic == selectedTonic,
                         borderColor = Stroke,
                         selectedBorderColor = Stroke
-                    )
+                    ),
+                    modifier = Modifier.testTag("tonic-chip-${tonic.name}")
                 )
             }
         }
@@ -312,6 +376,38 @@ private fun ScalesOptionsSheet(
     }
 }
 
+@Composable
+private fun ScalesErrorBanner(
+    error: ScalesError?,
+    onDismissed: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    AnimatedVisibility(
+        visible = error != null,
+        enter = slideInVertically { -it } + fadeIn(),
+        exit = slideOutVertically { -it } + fadeOut(),
+        modifier = modifier
+    ) {
+        error?.let {
+            Surface(
+                onClick = onDismissed,
+                color = Paper,
+                contentColor = Charcoal,
+                shape = RoundedCornerShape(12.dp),
+                shadowElevation = 6.dp,
+                tonalElevation = 2.dp,
+                modifier = Modifier.padding(top = 12.dp, start = 24.dp, end = 24.dp)
+            ) {
+                Text(
+                    text = it.message(),
+                    modifier = Modifier.padding(12.dp),
+                    fontSize = 14.sp
+                )
+            }
+        }
+    }
+}
+
 private val PracticeMode.label: String
     get() = when (this) {
         PracticeMode.MAJOR -> "Major"
@@ -319,3 +415,7 @@ private val PracticeMode.label: String
         PracticeMode.HARMONIC_MINOR -> "Harmonic minor"
         PracticeMode.MELODIC_MINOR -> "Melodic minor"
     }
+
+private fun ScalesError.message(): String = when (this) {
+    ScalesError.GenerationFailed -> "Couldn’t generate the scale. Please try again."
+}
