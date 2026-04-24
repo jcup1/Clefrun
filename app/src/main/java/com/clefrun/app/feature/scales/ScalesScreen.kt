@@ -1,6 +1,7 @@
 package com.clefrun.app.feature.scales
 
 import android.content.res.Configuration
+import androidx.annotation.VisibleForTesting
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -41,6 +42,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -267,8 +269,9 @@ private fun ScalesTopOverlayBar(
     }
 }
 
+@VisibleForTesting
 @Composable
-private fun ScalesOptionsSheet(
+fun ScalesOptionsSheet(
     selectedMode: PracticeMode,
     selectedTonic: PracticeTonic,
     onModeSelected: (PracticeMode) -> Unit,
@@ -358,7 +361,8 @@ private fun ScalesOptionsSheet(
                         selected = tonic == selectedTonic,
                         borderColor = Stroke,
                         selectedBorderColor = Stroke
-                    )
+                    ),
+                    modifier = Modifier.testTag("tonic-chip-${tonic.name}")
                 )
             }
         }
