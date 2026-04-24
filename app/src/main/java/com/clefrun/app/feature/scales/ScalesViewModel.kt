@@ -12,6 +12,7 @@ import com.clefrun.core.supportedTechnicalPracticeTonics
 import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.toImmutableSet
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -43,7 +44,11 @@ sealed interface ScalesError {
     data object GenerationFailed : ScalesError
 }
 
-class ScalesViewModel : ViewModel() {
+class ScalesViewModel(
+    private val generateXml: suspend (mode: PracticeMode, tonic: PracticeTonic) -> String = ::generateTechnicalPracticeXml,
+    private val generationDispatcher: CoroutineDispatcher = Dispatchers.Default,
+    private val logger: (String, Throwable?) -> Unit = { msg, t -> Log.e(TAG, msg, t) }
+) : ViewModel() {
 
     private val selection = MutableStateFlow(
         ScaleSelection(
@@ -60,12 +65,14 @@ class ScalesViewModel : ViewModel() {
     }
 
     fun onModeSelected(mode: PracticeMode) {
+        val currentSelection = selection.value
         val state = uiState.value
-        if (state.selectedMode == mode || mode !in state.supportedModes) return
+
+        if (currentSelection.mode == mode || mode !in state.supportedModes) return
 
         val supportedTonics = supportedTechnicalPracticeTonics(mode).toImmutableSet()
-        val tonic = if (state.selectedTonic in supportedTonics) {
-            state.selectedTonic
+        val tonic = if (currentSelection.tonic in supportedTonics) {
+            currentSelection.tonic
         } else {
             TechnicalPracticeDefaults.tonic
         }
@@ -74,11 +81,13 @@ class ScalesViewModel : ViewModel() {
     }
 
     fun onTonicSelected(tonic: PracticeTonic) {
+        val currentSelection = selection.value
         val state = uiState.value
-        if (state.selectedTonic == tonic) return
+
+        if (currentSelection.tonic == tonic) return
         if (tonic !in state.supportedTonics) return
 
-        selection.value = ScaleSelection(state.selectedMode, tonic)
+        selection.value = currentSelection.copy(tonic = tonic)
     }
 
     fun onErrorDismissed() {
@@ -110,15 +119,15 @@ class ScalesViewModel : ViewModel() {
             }
             .flatMapLatest { selected ->
                 flow {
-                    val xml = withContext(Dispatchers.Default) {
-                        generateTechnicalPracticeXml(selected.mode, selected.tonic)
+                    val xml = withContext(generationDispatcher) {
+                        generateXml(selected.mode, selected.tonic)
                     }
                     emit(xml)
                 }
                     .map { Result.success(it) }
                     .catch { throwable ->
                         if (throwable is CancellationException) throw throwable
-                        Log.e(TAG, "Failed to generate music XML", throwable)
+                        logger("Failed to generate music XML", throwable)
                         emit(Result.failure(throwable))
                     }
             }
