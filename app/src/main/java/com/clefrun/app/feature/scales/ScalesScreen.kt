@@ -71,10 +71,12 @@ internal fun ScalesScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val onErrorDismissed = viewModel::onErrorDismissed
 
     if (isLandscape) {
         LandscapeScalesContent(
-            musicXml = uiState.currentMusicXml,
+            uiState = uiState,
+            onErrorDismissed = onErrorDismissed,
             modifier = modifier
         )
     } else {
@@ -82,9 +84,16 @@ internal fun ScalesScreen(
             uiState = uiState,
             onModeSelected = viewModel::onModeSelected,
             onTonicSelected = viewModel::onTonicSelected,
-            onErrorDismissed = viewModel::onErrorDismissed,
+            onErrorDismissed = onErrorDismissed,
             modifier = modifier
         )
+    }
+
+    uiState.error?.let { error ->
+        LaunchedEffect(error) {
+            delay(3000)
+            onErrorDismissed()
+        }
     }
 }
 
@@ -105,13 +114,6 @@ private fun PortraitScalesContent(
         )
     )
     val scope = rememberCoroutineScope()
-
-    uiState.error?.let {
-        LaunchedEffect(it) {
-            delay(3000)
-            onErrorDismissed()
-        }
-    }
 
     BottomSheetScaffold(
         modifier = modifier.fillMaxSize(),
@@ -200,7 +202,8 @@ private fun PortraitScalesContent(
 
 @Composable
 private fun LandscapeScalesContent(
-    musicXml: String,
+    uiState: ScalesUiState,
+    onErrorDismissed: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -212,10 +215,19 @@ private fun LandscapeScalesContent(
             .padding(horizontal = 6.dp, vertical = 6.dp)
     ) {
         ScoreSurface(
-            musicXml = musicXml,
+            musicXml = uiState.currentMusicXml,
             showMeasureNumbers = false,
             modifier = Modifier.fillMaxSize()
         )
+
+        ScalesErrorBanner(
+            error = uiState.error,
+            onDismissed = onErrorDismissed,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .zIndex(1f)
+        )
+
     }
 }
 

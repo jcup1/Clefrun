@@ -115,3 +115,8 @@ enum class PracticeTonic {
     A,
     B
 }
+
+object TechnicalPracticeDefaults {
+    val mode: PracticeMode = PracticeMode.MAJOR
+    val tonic: PracticeTonic = PracticeTonic.F
+}

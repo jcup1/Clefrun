@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.clefrun.core.PracticeMode
 import com.clefrun.core.PracticeTonic
+import com.clefrun.core.TechnicalPracticeDefaults
 import com.clefrun.core.supportedTechnicalPracticeModes
 import com.clefrun.core.supportedTechnicalPracticeTonics
 import kotlinx.collections.immutable.ImmutableSet
@@ -27,10 +28,12 @@ import kotlinx.coroutines.withContext
 
 @Immutable
 data class ScalesUiState(
-    val selectedMode: PracticeMode = PracticeMode.MAJOR,
-    val selectedTonic: PracticeTonic = PracticeTonic.F,
+    val selectedMode: PracticeMode = TechnicalPracticeDefaults.mode,
+    val selectedTonic: PracticeTonic = TechnicalPracticeDefaults.tonic,
     val supportedModes: ImmutableSet<PracticeMode> = supportedTechnicalPracticeModes().toImmutableSet(),
-    val supportedTonics: ImmutableSet<PracticeTonic> = supportedTechnicalPracticeTonics(PracticeMode.MAJOR).toImmutableSet(),
+    val supportedTonics: ImmutableSet<PracticeTonic> = supportedTechnicalPracticeTonics(
+        TechnicalPracticeDefaults.mode
+    ).toImmutableSet(),
     val currentMusicXml: String = "",
     val isLoading: Boolean = false,
     val error: ScalesError? = null,
@@ -44,8 +47,8 @@ class ScalesViewModel : ViewModel() {
 
     private val selection = MutableStateFlow(
         ScaleSelection(
-            mode = PracticeMode.MAJOR,
-            tonic = PracticeTonic.F
+            mode = TechnicalPracticeDefaults.mode,
+            tonic = TechnicalPracticeDefaults.tonic
         )
     )
 
@@ -64,7 +67,7 @@ class ScalesViewModel : ViewModel() {
         val tonic = if (state.selectedTonic in supportedTonics) {
             state.selectedTonic
         } else {
-            supportedTonics.first()
+            TechnicalPracticeDefaults.tonic
         }
 
         selection.value = ScaleSelection(mode, tonic)
