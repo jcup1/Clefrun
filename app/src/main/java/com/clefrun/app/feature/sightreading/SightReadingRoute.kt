@@ -15,7 +15,9 @@ fun SightReadingRoute(
             coach = exercisePlan.coach,
             coachTipId = exercisePlan.id,
             selectedDifficulty = scoreViewModel.selectedDifficulty,
+            targetedPracticeText = scoreViewModel.targetedPracticeText,
             onDifficultySelected = scoreViewModel::onDifficultySelected,
+            onTargetedPracticeTextChange = scoreViewModel::onTargetedPracticeTextChange,
             onNewExercise = scoreViewModel::onNewExercise,
             modifier = modifier
         )

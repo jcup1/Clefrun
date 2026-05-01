@@ -4,9 +4,13 @@ import kotlin.math.abs
 import kotlin.random.Random
 
 object RuleBasedGenerator {
-    fun generate(seed: Long, difficulty: Difficulty = Difficulty.MEDIUM): Exercise {
+    fun generate(
+        seed: Long,
+        difficulty: Difficulty = Difficulty.MEDIUM,
+        focus: ExerciseFocus = ExerciseFocus.READ_AHEAD
+    ): Exercise {
         val random = Random(seed)
-        val profile = difficulty.profile()
+        val profile = difficulty.profile().forFocus(focus)
         val chords = buildChordProgression(random)
 
         var previousRhMidi: Int? = null
@@ -21,7 +25,8 @@ object RuleBasedGenerator {
                 previousRhMidi = previousRhMidi,
                 previousShape = previousShape,
                 globalRecentMidis = recentRhMidis,
-                profile = profile
+                profile = profile,
+                focus = focus
             )
 
             maybeInsertChromaticApproach(
@@ -49,7 +54,7 @@ object RuleBasedGenerator {
                         beatStart = it.beatStart
                     )
                 },
-                leftHand = generateLeftHand(random, chord, profile)
+                leftHand = generateLeftHand(random, chord, profile, focus)
             )
         }
 
@@ -132,6 +137,18 @@ private fun Difficulty.profile(): DifficultyProfile {
     }
 }
 
+private fun DifficultyProfile.forFocus(focus: ExerciseFocus): DifficultyProfile {
+    return when (focus) {
+        ExerciseFocus.ACCIDENTALS -> copy(
+            accidentalProbability = when {
+                accidentalProbability <= 0.0 -> 0.12
+                else -> (accidentalProbability + 0.12).coerceAtMost(0.48)
+            }
+        )
+        else -> this
+    }
+}
+
 private fun buildChordProgression(random: Random): List<ChordFunction> {
     val phraseA = buildPhrase(random)
     val phraseB = buildPhrase(random, avoidOpenings = setOf(phraseA.first(), phraseA.last()))
@@ -177,7 +194,8 @@ private fun generateRightHandBar(
     previousRhMidi: Int?,
     previousShape: List<Int>?,
     globalRecentMidis: List<Int>,
-    profile: DifficultyProfile
+    profile: DifficultyProfile,
+    focus: ExerciseFocus
 ): MutableList<MutableRhEvent> {
     var attempt = 0
     while (true) {
@@ -196,7 +214,8 @@ private fun generateRightHandBar(
                 contourDirection = contourDirection,
                 weakBeat = beat == 2 || beat == 4,
                 recent = (globalRecentMidis + events.takeLast(2).map { it.midi }).takeLast(3),
-                profile = profile
+                profile = profile,
+                focus = focus
             )
             events += MutableRhEvent(midi = midi, duration = duration, beatStart = beat)
             localPrev = midi
@@ -254,13 +273,19 @@ private fun rightHandRhythmPattern(random: Random, profile: DifficultyProfile): 
 private fun generateLeftHand(
     random: Random,
     chord: ChordFunction,
-    profile: DifficultyProfile
+    profile: DifficultyProfile,
+    focus: ExerciseFocus
 ): List<NoteEvent> {
     val root = leftHandRootMidi(chord)
     val third = leftHandThirdMidi(chord)
     val fifth = leftHandFifthMidi(chord)
 
-    val pattern: List<Pair<Int, Duration>> = when (profile.leftHandStyle) {
+    val pattern: List<Pair<Int, Duration>> = if (focus == ExerciseFocus.LEFT_HAND_STABILITY) {
+        listOf(
+            root to Duration.HALF,
+            fifth to Duration.HALF
+        )
+    } else when (profile.leftHandStyle) {
         LeftHandStyle.EASY -> if (random.nextDouble() < 0.65) {
             listOf(root to Duration.WHOLE)
         } else {
@@ -324,7 +349,8 @@ private fun chooseRightHandMidi(
     contourDirection: Int,
     weakBeat: Boolean,
     recent: List<Int>,
-    profile: DifficultyProfile
+    profile: DifficultyProfile,
+    focus: ExerciseFocus
 ): Int {
     val candidates = profile.rightHandRange.filter { midi ->
         isCmajor(midi) && (!mustBeChordTone || isChordTone(midi, chord))
@@ -357,6 +383,15 @@ private fun chooseRightHandMidi(
 
             if (diff >= 5) {
                 weight = (weight - profile.largeLeapWeightPenalty).coerceAtLeast(1)
+            }
+
+            if (focus == ExerciseFocus.SMALL_LEAPS) {
+                weight = when {
+                    diff in 3..5 -> weight + 3
+                    diff > 5 -> (weight - 2).coerceAtLeast(1)
+                    diff == 0 -> (weight - 1).coerceAtLeast(1)
+                    else -> weight
+                }
             }
 
             if (weakBeat) {

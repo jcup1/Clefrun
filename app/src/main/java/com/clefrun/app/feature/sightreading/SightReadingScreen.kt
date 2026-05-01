@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -59,7 +60,9 @@ internal fun SightReadingScreen(
     coach: CoachContent,
     coachTipId: String,
     selectedDifficulty: Difficulty,
+    targetedPracticeText: String,
     onDifficultySelected: (Difficulty) -> Unit,
+    onTargetedPracticeTextChange: (String) -> Unit,
     onNewExercise: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -78,7 +81,9 @@ internal fun SightReadingScreen(
             coach = coach,
             coachTipId = coachTipId,
             selectedDifficulty = selectedDifficulty,
+            targetedPracticeText = targetedPracticeText,
             onDifficultySelected = onDifficultySelected,
+            onTargetedPracticeTextChange = onTargetedPracticeTextChange,
             onRegenerate = onNewExercise,
             modifier = modifier
         )
@@ -92,7 +97,9 @@ private fun PortraitScoreScreen(
     coach: CoachContent,
     coachTipId: String,
     selectedDifficulty: Difficulty,
+    targetedPracticeText: String,
     onDifficultySelected: (Difficulty) -> Unit,
+    onTargetedPracticeTextChange: (String) -> Unit,
     onRegenerate: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -132,11 +139,17 @@ private fun PortraitScoreScreen(
             OptionsSheetContent(
                 selectedDifficulty = selectedDifficulty,
                 onDifficultySelected = onDifficultySelected,
+                targetedPracticeText = targetedPracticeText,
+                onTargetedPracticeTextChange = onTargetedPracticeTextChange,
+                onTargetedPracticeFocused = {
+                    scaffoldState.bottomSheetState.expand()
+                },
                 tempo = tempo,
                 onTempoChange = { tempo = it },
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
+                    .imePadding()
                     .padding(bottom = 12.dp)
             )
         },
