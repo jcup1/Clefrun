@@ -1,10 +1,14 @@
 package com.clefrun.app.feature.sightreading
 
-import com.clefrun.core.Difficulty
+import com.clefrun.app.coach.ExercisePlan
 import com.clefrun.core.MusicXmlWriter
 import com.clefrun.core.RuleBasedGenerator
 
-internal fun generateExerciseXml(seed: Long, difficulty: Difficulty): String {
-    val exercise = RuleBasedGenerator.generate(seed, difficulty)
+internal fun generateExerciseXml(exercisePlan: ExercisePlan): String {
+    val exercise = RuleBasedGenerator.generate(
+        seed = exercisePlan.seed,
+        difficulty = exercisePlan.difficulty,
+        focus = exercisePlan.generatorFocus
+    )
     return MusicXmlWriter.write(exercise)
 }

@@ -1,37 +1,90 @@
 package com.clefrun.app.coach
 
 import com.clefrun.core.Difficulty
+import com.clefrun.core.ExerciseFocus
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class LocalExercisePlanProviderTest {
 
     @Test
-    fun `cycles through predefined sight reading tips`() {
+    fun `empty targeted practice uses read ahead plan`() {
         val provider = LocalExercisePlanProvider()
 
-        val first = provider.nextSightReadingPlan(seed = 1L, difficulty = Difficulty.EASY)
-        val second = provider.nextSightReadingPlan(seed = 2L, difficulty = Difficulty.EASY)
-        val third = provider.nextSightReadingPlan(seed = 3L, difficulty = Difficulty.EASY)
-        val fourth = provider.nextSightReadingPlan(seed = 4L, difficulty = Difficulty.EASY)
+        val plan = provider.nextSightReadingPlan(
+            ExercisePlanRequest(
+                seed = 1L,
+                difficulty = Difficulty.EASY,
+                targetedPracticeText = null
+            )
+        )
 
-        assertEquals("Read ahead", first.coach.focusLabel)
-        assertEquals("Block chords together", second.coach.focusLabel)
-        assertEquals("Steady rhythm", third.coach.focusLabel)
-        assertEquals(first.coach, fourth.coach)
+        assertEquals(ExerciseFocus.READ_AHEAD, plan.generatorFocus)
+        assertEquals("Read ahead", plan.coach.focusLabel)
     }
 
     @Test
     fun `creates local sight reading plan for selected difficulty`() {
         val provider = LocalExercisePlanProvider()
 
-        val plan = provider.nextSightReadingPlan(seed = 7L, difficulty = Difficulty.HARD)
+        val plan = provider.nextSightReadingPlan(
+            ExercisePlanRequest(
+                seed = 7L,
+                difficulty = Difficulty.HARD,
+                targetedPracticeText = "left hand"
+            )
+        )
 
         assertEquals("local-sight-reading-7", plan.id)
+        assertEquals(7L, plan.seed)
         assertEquals(ExercisePlanSource.LOCAL, plan.source)
         assertEquals(ExercisePlanMode.SIGHT_READING, plan.mode)
         assertEquals(Difficulty.HARD, plan.difficulty)
+        assertEquals(ExerciseFocus.LEFT_HAND_STABILITY, plan.generatorFocus)
         assertEquals(plan.coach.focusLabel, plan.focus)
         assertEquals(emptyList<String>(), plan.constraints)
+    }
+
+    @Test
+    fun `maps targeted practice text to supported focus`() {
+        val provider = LocalExercisePlanProvider()
+
+        assertEquals(ExerciseFocus.LEFT_HAND_STABILITY, provider.focusForText("left hand"))
+        assertEquals(ExerciseFocus.LEFT_HAND_STABILITY, provider.focusForText("bass clef"))
+        assertEquals(ExerciseFocus.ACCIDENTALS, provider.focusForText("sharps and flats"))
+        assertEquals(ExerciseFocus.ACCIDENTALS, provider.focusForText("accidentals"))
+        assertEquals(ExerciseFocus.SMALL_LEAPS, provider.focusForText("small jumps"))
+        assertEquals(ExerciseFocus.SMALL_LEAPS, provider.focusForText("leaps"))
+        assertEquals(ExerciseFocus.READ_AHEAD, provider.focusForText("chords"))
+        assertEquals(ExerciseFocus.READ_AHEAD, provider.focusForText("something else"))
+    }
+
+    @Test
+    fun `does not match targeted practice substrings inside larger words`() {
+        val provider = LocalExercisePlanProvider()
+
+        assertEquals(ExerciseFocus.READ_AHEAD, provider.focusForText("cleft hand"))
+        assertEquals(ExerciseFocus.READ_AHEAD, provider.focusForText("flatware"))
+        assertEquals(ExerciseFocus.READ_AHEAD, provider.focusForText("jumper"))
+        assertEquals(ExerciseFocus.READ_AHEAD, provider.focusForText("jumping"))
+    }
+
+    @Test
+    fun `tokenizes targeted practice on non letter separators`() {
+        val provider = LocalExercisePlanProvider()
+
+        assertEquals(ExerciseFocus.LEFT_HAND_STABILITY, provider.focusForText("LEFT-hand"))
+        assertEquals(ExerciseFocus.ACCIDENTALS, provider.focusForText("sharp/flat"))
+        assertEquals(ExerciseFocus.SMALL_LEAPS, provider.focusForText("small,jumps"))
+    }
+
+    private fun LocalExercisePlanProvider.focusForText(text: String): ExerciseFocus {
+        return nextSightReadingPlan(
+            ExercisePlanRequest(
+                seed = 1L,
+                difficulty = Difficulty.EASY,
+                targetedPracticeText = text
+            )
+        ).generatorFocus
     }
 }

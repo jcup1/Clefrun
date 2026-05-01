@@ -134,6 +134,99 @@ class RuleBasedGeneratorTest {
         assertTrue("Hard should cover a wider RH span than easy", hardRange > easyRange)
     }
 
+    @Test
+    fun leftHandStabilityFocusUsesSteadyHalfNotePattern() {
+        val seeds = (1L..12L).toList()
+
+        Difficulty.entries.forEach { difficulty ->
+            seeds.forEach { seed ->
+                val exercise = RuleBasedGenerator.generate(
+                    seed = seed,
+                    difficulty = difficulty,
+                    focus = ExerciseFocus.LEFT_HAND_STABILITY
+                )
+
+                exercise.bars.forEach { bar ->
+                    assertEquals(listOf(Duration.HALF, Duration.HALF), bar.leftHand.map { it.duration })
+                    assertTrue(
+                        "LH must stay below RH (seed=$seed, bar=${bar.number})",
+                        bar.leftHand.maxOf { toMidi(requireNotNull(it.pitch)) } <
+                            bar.rightHand.minOf { toMidi(requireNotNull(it.pitch)) }
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun accidentalsFocusBiasesExistingChromaticApproachBehavior() {
+        val seeds = (1L..80L).toList()
+
+        val defaultAccidentals = seeds.sumOf { seed ->
+            countAccidentals(RuleBasedGenerator.generate(seed = seed, difficulty = Difficulty.MEDIUM))
+        }
+        val focusedAccidentals = seeds.sumOf { seed ->
+            countAccidentals(
+                RuleBasedGenerator.generate(
+                    seed = seed,
+                    difficulty = Difficulty.MEDIUM,
+                    focus = ExerciseFocus.ACCIDENTALS
+                )
+            )
+        }
+
+        assertTrue("Accidentals focus should increase altered RH notes", focusedAccidentals > defaultAccidentals)
+    }
+
+    @Test
+    fun accidentalsFocusKeepsResolutionConstraint() {
+        val seeds = (1L..120L).toList()
+
+        Difficulty.entries.forEach { difficulty ->
+            seeds.forEach { seed ->
+                val exercise = RuleBasedGenerator.generate(
+                    seed = seed,
+                    difficulty = difficulty,
+                    focus = ExerciseFocus.ACCIDENTALS
+                )
+                exercise.bars.forEach { bar ->
+                    bar.rightHand.forEachIndexed { index, note ->
+                        val pitch = note.pitch ?: return@forEachIndexed
+                        if (pitch.alter == 0) return@forEachIndexed
+
+                        assertTrue(
+                            "Accidental note must not be last in bar (seed=$seed, bar=${bar.number})",
+                            index + 1 < bar.rightHand.size
+                        )
+                        val nextPitch = requireNotNull(bar.rightHand[index + 1].pitch)
+                        assertEquals(1, abs(toMidi(pitch) - toMidi(nextPitch)))
+                        assertTrue("Resolution note must be chord tone", isChordTone(nextPitch, bar.chord))
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun smallLeapsFocusBiasesRightHandTowardControlledLeaps() {
+        val seeds = (1L..80L).toList()
+
+        val defaultSmallLeaps = seeds.sumOf { seed ->
+            countSmallLeaps(RuleBasedGenerator.generate(seed = seed, difficulty = Difficulty.MEDIUM))
+        }
+        val focusedSmallLeaps = seeds.sumOf { seed ->
+            countSmallLeaps(
+                RuleBasedGenerator.generate(
+                    seed = seed,
+                    difficulty = Difficulty.MEDIUM,
+                    focus = ExerciseFocus.SMALL_LEAPS
+                )
+            )
+        }
+
+        assertTrue("Small leaps focus should increase RH intervals of a third to fourth", focusedSmallLeaps > defaultSmallLeaps)
+    }
+
     private fun isChordTone(pitch: Pitch, chord: ChordFunction): Boolean {
         val pitchClass = ((stepToPitchClass(pitch.step) + pitch.alter) % 12 + 12) % 12
         val tones = when (chord) {
@@ -168,6 +261,14 @@ class RuleBasedGeneratorTest {
             .map { toMidi(requireNotNull(it.pitch)) }
         if (midis.isEmpty()) return 0
         return midis.maxOrNull()!! - midis.minOrNull()!!
+    }
+
+    private fun countSmallLeaps(exercise: Exercise): Int {
+        return exercise.bars.sumOf { bar ->
+            bar.rightHand
+                .zipWithNext { a, b -> abs(toMidi(requireNotNull(a.pitch)) - toMidi(requireNotNull(b.pitch))) }
+                .count { it in 3..5 }
+        }
     }
 
     private fun stepToPitchClass(step: Step): Int {

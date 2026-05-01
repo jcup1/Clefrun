@@ -1,47 +1,74 @@
 package com.clefrun.app.coach
 
-import com.clefrun.core.Difficulty
+import com.clefrun.core.ExerciseFocus
+import java.util.Locale
 
 fun interface ExercisePlanProvider {
-    fun nextSightReadingPlan(
-        seed: Long,
-        difficulty: Difficulty,
-    ): ExercisePlan
+    fun nextSightReadingPlan(request: ExercisePlanRequest): ExercisePlan
 }
 
 class LocalExercisePlanProvider : ExercisePlanProvider {
-    override fun nextSightReadingPlan(
-        seed: Long,
-        difficulty: Difficulty,
-    ): ExercisePlan {
-        val index = (((seed - 1L) % tips.size) + tips.size) % tips.size
-        val tip = tips[index.toInt()]
+    override fun nextSightReadingPlan(request: ExercisePlanRequest): ExercisePlan {
+        val focus = focusFor(request.targetedPracticeText)
+        val tip = tipFor(focus)
         return ExercisePlan(
-            id = "local-sight-reading-$seed",
+            id = "local-sight-reading-${request.seed}",
+            seed = request.seed,
             source = ExercisePlanSource.LOCAL,
             mode = ExercisePlanMode.SIGHT_READING,
-            difficulty = difficulty,
+            difficulty = request.difficulty,
+            generatorFocus = focus,
             focus = tip.focusLabel,
             coach = tip,
         )
     }
 }
 
-private val tips = listOf(
-    CoachContent(
-        title = "Coach tip",
-        focusLabel = "Read ahead",
-        body = "Look one beat ahead and keep the left hand light while the right hand moves.",
-    ),
-    CoachContent(
-        title = "Coach tip",
-        focusLabel = "Block chords together",
-        body = "When you see a chord, press all notes at the same time.",
-        watchOut = "Avoid rolling them like an arpeggio.",
-    ),
-    CoachContent(
-        title = "Coach tip",
-        focusLabel = "Steady rhythm",
-        body = "Keep counting through the bar and avoid stopping when the hands move separately.",
-    ),
-)
+private fun focusFor(targetedPracticeText: String?): ExerciseFocus {
+    val tokens = targetedPracticeText
+        ?.lowercase(Locale.ROOT)
+        ?.split(NonLetterRegex)
+        ?.filter { it.isNotBlank() }
+        ?.toSet()
+        .orEmpty()
+    if (tokens.isEmpty()) return ExerciseFocus.READ_AHEAD
+
+    return when {
+        tokens.any { it in leftHandTokens } -> ExerciseFocus.LEFT_HAND_STABILITY
+        tokens.any { it in accidentalTokens } -> ExerciseFocus.ACCIDENTALS
+        tokens.any { it in smallLeapTokens } -> ExerciseFocus.SMALL_LEAPS
+        tokens.any { it in chordTokens } -> ExerciseFocus.READ_AHEAD
+        else -> ExerciseFocus.READ_AHEAD
+    }
+}
+
+private val NonLetterRegex = Regex("[^\\p{L}]+")
+private val leftHandTokens = setOf("left", "bass")
+private val accidentalTokens = setOf("accidental", "accidentals", "sharp", "sharps", "flat", "flats")
+private val smallLeapTokens = setOf("leap", "leaps", "jump", "jumps")
+private val chordTokens = setOf("chord", "chords")
+
+private fun tipFor(focus: ExerciseFocus): CoachContent {
+    return when (focus) {
+        ExerciseFocus.READ_AHEAD -> CoachContent(
+            title = "Coach tip",
+            focusLabel = "Read ahead",
+            body = "Look one beat ahead and keep the pulse steady through the full phrase.",
+        )
+        ExerciseFocus.LEFT_HAND_STABILITY -> CoachContent(
+            title = "Coach tip",
+            focusLabel = "Left hand stability",
+            body = "Keep the left hand steady and light while reading the right hand one beat ahead.",
+        )
+        ExerciseFocus.ACCIDENTALS -> CoachContent(
+            title = "Coach tip",
+            focusLabel = "Accidentals",
+            body = "Scan for altered notes before you start, then keep the pulse steady when they appear.",
+        )
+        ExerciseFocus.SMALL_LEAPS -> CoachContent(
+            title = "Coach tip",
+            focusLabel = "Small leaps",
+            body = "Read the interval shape before moving, and prepare the next hand position early.",
+        )
+    }
+}

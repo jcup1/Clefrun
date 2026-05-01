@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.clefrun.app.coach.ExercisePlan
+import com.clefrun.app.coach.ExercisePlanRequest
 import com.clefrun.app.coach.ExercisePlanProvider
 import com.clefrun.app.coach.LocalExercisePlanProvider
 import com.clefrun.core.Difficulty
@@ -18,7 +19,7 @@ import kotlinx.coroutines.withContext
 
 class ScoreViewModel(
     private val exercisePlanProvider: ExercisePlanProvider = LocalExercisePlanProvider(),
-    private val generateXml: suspend (seed: Long, difficulty: Difficulty) -> String = ::generateExerciseXml,
+    private val generateXml: suspend (ExercisePlan) -> String = ::generateExerciseXml,
     private val generationDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
     private var nextSeed by mutableLongStateOf(2L)
@@ -31,6 +32,9 @@ class ScoreViewModel(
         private set
 
     var currentExercisePlan: ExercisePlan? by mutableStateOf(null)
+        private set
+
+    var targetedPracticeText by mutableStateOf("")
         private set
 
     init {
@@ -46,18 +50,28 @@ class ScoreViewModel(
         nextSeed += 1
     }
 
+    fun onTargetedPracticeTextChange(text: String) {
+        targetedPracticeText = text.take(MaxTargetedPracticeTextLength)
+    }
+
     private fun generateExercise(seed: Long, difficulty: Difficulty) {
         generationJob?.cancel()
-        val exercisePlan = exercisePlanProvider.nextSightReadingPlan(
+        val request = ExercisePlanRequest(
             seed = seed,
-            difficulty = difficulty
+            difficulty = difficulty,
+            targetedPracticeText = targetedPracticeText.ifBlank { null }
         )
+        val exercisePlan = exercisePlanProvider.nextSightReadingPlan(request)
         currentExercisePlan = exercisePlan
         generationJob = viewModelScope.launch {
             val musicXml = withContext(generationDispatcher) {
-                generateXml(seed, difficulty)
+                generateXml(exercisePlan)
             }
             currentMusicXml = musicXml
         }
+    }
+
+    private companion object {
+        const val MaxTargetedPracticeTextLength = 255
     }
 }

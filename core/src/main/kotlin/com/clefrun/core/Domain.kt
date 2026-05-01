@@ -15,6 +15,13 @@ enum class Difficulty {
     HARD
 }
 
+enum class ExerciseFocus {
+    READ_AHEAD,
+    LEFT_HAND_STABILITY,
+    ACCIDENTALS,
+    SMALL_LEAPS
+}
+
 data class Bar(
     val number: Int,
     val chord: ChordFunction,

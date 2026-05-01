@@ -5,9 +5,15 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -16,7 +22,13 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusEvent
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -30,17 +42,35 @@ import com.clefrun.app.ui.theme.TextPrimary
 import com.clefrun.app.ui.theme.TextSecondary
 import com.clefrun.app.ui.theme.WarmAccent
 import com.clefrun.core.Difficulty
+import kotlinx.coroutines.delay
 
 @Composable
 internal fun OptionsSheetContent(
     selectedDifficulty: Difficulty,
     onDifficultySelected: (Difficulty) -> Unit,
+    targetedPracticeText: String,
+    onTargetedPracticeTextChange: (String) -> Unit,
+    onTargetedPracticeFocused: suspend () -> Unit,
     tempo: Float,
     onTempoChange: (Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val scrollState = rememberScrollState()
+    val bringIntoViewRequester = remember { BringIntoViewRequester() }
+    var isTargetedPracticeFocused by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isTargetedPracticeFocused) {
+        if (isTargetedPracticeFocused) {
+            onTargetedPracticeFocused()
+            delay(TargetedPracticeBringIntoViewDelayMillis)
+            bringIntoViewRequester.bringIntoView()
+        }
+    }
+
     Column(
-        modifier = modifier.padding(horizontal = 20.dp)
+        modifier = modifier
+            .verticalScroll(scrollState)
+            .padding(horizontal = 20.dp)
     ) {
         Text(
             text = "Exercise settings",
@@ -77,6 +107,43 @@ internal fun OptionsSheetContent(
                 HorizontalDivider(color = Divider)
                 Spacer(modifier = Modifier.height(18.dp))
 
+                OutlinedTextField(
+                    value = targetedPracticeText,
+                    onValueChange = onTargetedPracticeTextChange,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 10.dp)
+                        .bringIntoViewRequester(bringIntoViewRequester)
+                        .onFocusEvent { focusState ->
+                            isTargetedPracticeFocused = focusState.isFocused
+                        },
+                    label = { Text("Targeted practice") },
+                    placeholder = { Text("e.g. left hand, accidentals, small jumps") },
+                    supportingText = { Text("Used for the next exercise.") },
+                    minLines = 3,
+                    maxLines = 5,
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(color = Charcoal),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Charcoal,
+                        unfocusedTextColor = Charcoal,
+                        focusedContainerColor = Paper,
+                        unfocusedContainerColor = Paper,
+                        focusedBorderColor = WarmAccent,
+                        unfocusedBorderColor = Stroke,
+                        focusedLabelColor = WarmAccent,
+                        unfocusedLabelColor = TextSecondary,
+                        cursorColor = WarmAccent,
+                        focusedPlaceholderColor = TextSecondary,
+                        unfocusedPlaceholderColor = TextSecondary,
+                        focusedSupportingTextColor = TextSecondary,
+                        unfocusedSupportingTextColor = TextSecondary
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(18.dp))
+                HorizontalDivider(color = Divider)
+                Spacer(modifier = Modifier.height(18.dp))
+
                 Text(
                     text = "Tempo",
                     color = Charcoal,
@@ -103,9 +170,11 @@ internal fun OptionsSheetContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(36.dp))
     }
 }
+
+private const val TargetedPracticeBringIntoViewDelayMillis = 250L
 
 @Composable
 private fun DifficultySelector(
