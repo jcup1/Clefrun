@@ -1,4 +1,4 @@
-package com.clefrun.app.feature.sightreading
+package com.clefrun.app.ui.score
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box

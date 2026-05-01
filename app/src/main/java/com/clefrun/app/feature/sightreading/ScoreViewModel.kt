@@ -6,13 +6,21 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.clefrun.app.coach.ExercisePlan
+import com.clefrun.app.coach.ExercisePlanProvider
+import com.clefrun.app.coach.LocalExercisePlanProvider
 import com.clefrun.core.Difficulty
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class ScoreViewModel : ViewModel() {
+class ScoreViewModel(
+    private val exercisePlanProvider: ExercisePlanProvider = LocalExercisePlanProvider(),
+    private val generateXml: suspend (seed: Long, difficulty: Difficulty) -> String = ::generateExerciseXml,
+    private val generationDispatcher: CoroutineDispatcher = Dispatchers.Default,
+) : ViewModel() {
     private var nextSeed by mutableLongStateOf(2L)
     private var generationJob: Job? = null
 
@@ -20,6 +28,9 @@ class ScoreViewModel : ViewModel() {
         private set
 
     var currentMusicXml by mutableStateOf("")
+        private set
+
+    var currentExercisePlan: ExercisePlan? by mutableStateOf(null)
         private set
 
     init {
@@ -37,9 +48,14 @@ class ScoreViewModel : ViewModel() {
 
     private fun generateExercise(seed: Long, difficulty: Difficulty) {
         generationJob?.cancel()
+        val exercisePlan = exercisePlanProvider.nextSightReadingPlan(
+            seed = seed,
+            difficulty = difficulty
+        )
+        currentExercisePlan = exercisePlan
         generationJob = viewModelScope.launch {
-            val musicXml = withContext(Dispatchers.Default) {
-                generateExerciseXml(seed = seed, difficulty = difficulty)
+            val musicXml = withContext(generationDispatcher) {
+                generateXml(seed, difficulty)
             }
             currentMusicXml = musicXml
         }

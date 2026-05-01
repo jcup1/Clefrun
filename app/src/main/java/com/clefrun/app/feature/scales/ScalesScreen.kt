@@ -48,8 +48,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.clefrun.app.feature.sightreading.ScoreSurface
 import com.clefrun.app.ui.components.ClefRunLogo
+import com.clefrun.app.ui.score.ScoreSurface
 import com.clefrun.app.ui.theme.AppBackground
 import com.clefrun.app.ui.theme.Charcoal
 import com.clefrun.app.ui.theme.Divider
