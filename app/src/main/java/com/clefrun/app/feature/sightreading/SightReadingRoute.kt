@@ -8,12 +8,16 @@ fun SightReadingRoute(
     scoreViewModel: ScoreViewModel,
     modifier: Modifier = Modifier,
 ) {
-    SightReadingScreen(
-        musicXml = scoreViewModel.currentMusicXml,
-        coach = scoreViewModel.currentExercisePlan.coach,
-        selectedDifficulty = scoreViewModel.selectedDifficulty,
-        onDifficultySelected = scoreViewModel::onDifficultySelected,
-        onNewExercise = scoreViewModel::onNewExercise,
-        modifier = modifier
-    )
+    val exercisePlan = scoreViewModel.currentExercisePlan
+    if (exercisePlan != null) {
+        SightReadingScreen(
+            musicXml = scoreViewModel.currentMusicXml,
+            coach = exercisePlan.coach,
+            coachTipId = exercisePlan.id,
+            selectedDifficulty = scoreViewModel.selectedDifficulty,
+            onDifficultySelected = scoreViewModel::onDifficultySelected,
+            onNewExercise = scoreViewModel::onNewExercise,
+            modifier = modifier
+        )
+    }
 }

@@ -39,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.clefrun.app.coach.CoachContent
@@ -56,6 +57,7 @@ import kotlinx.coroutines.launch
 internal fun SightReadingScreen(
     musicXml: String,
     coach: CoachContent,
+    coachTipId: String,
     selectedDifficulty: Difficulty,
     onDifficultySelected: (Difficulty) -> Unit,
     onNewExercise: () -> Unit,
@@ -74,6 +76,7 @@ internal fun SightReadingScreen(
         PortraitScoreScreen(
             musicXml = musicXml,
             coach = coach,
+            coachTipId = coachTipId,
             selectedDifficulty = selectedDifficulty,
             onDifficultySelected = onDifficultySelected,
             onRegenerate = onNewExercise,
@@ -87,6 +90,7 @@ internal fun SightReadingScreen(
 private fun PortraitScoreScreen(
     musicXml: String,
     coach: CoachContent,
+    coachTipId: String,
     selectedDifficulty: Difficulty,
     onDifficultySelected: (Difficulty) -> Unit,
     onRegenerate: () -> Unit,
@@ -96,8 +100,8 @@ private fun PortraitScoreScreen(
     var isCoachTipVisible by rememberSaveable { mutableStateOf(false) }
     var isCoachTipUnread by rememberSaveable { mutableStateOf(true) }
 
-    LaunchedEffect(coach) {
-        isCoachTipUnread = true
+    LaunchedEffect(coachTipId) {
+        isCoachTipUnread = !isCoachTipVisible
     }
 
     val scaffoldState = rememberBottomSheetScaffoldState(
@@ -186,7 +190,10 @@ private fun PortraitScoreScreen(
                         ),
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(end = 8.dp, bottom = 178.dp)
+                        .padding(
+                            end = CoachTipPopupEndPadding,
+                            bottom = CoachTipPopupBottomPadding
+                        )
                         .zIndex(1f)
                 ) {
                     CoachTipPopup(
@@ -206,7 +213,10 @@ private fun PortraitScoreScreen(
                     },
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(end = 12.dp, bottom = 102.dp)
+                        .padding(
+                            end = CoachBubbleEndPadding,
+                            bottom = CoachBubbleBottomPadding
+                        )
                         .zIndex(2f)
                 )
             }
@@ -215,6 +225,10 @@ private fun PortraitScoreScreen(
 }
 
 private val SightReadingBottomSheetPeekHeight = 86.dp
+private val CoachBubbleBottomPadding: Dp = SightReadingBottomSheetPeekHeight + 16.dp
+private val CoachTipPopupBottomPadding: Dp = CoachBubbleBottomPadding + 76.dp
+private val CoachTipPopupEndPadding = 8.dp
+private val CoachBubbleEndPadding = 12.dp
 
 @Composable
 private fun LandscapeScoreScreen(

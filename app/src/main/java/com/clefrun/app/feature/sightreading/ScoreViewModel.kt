@@ -30,9 +30,7 @@ class ScoreViewModel(
     var currentMusicXml by mutableStateOf("")
         private set
 
-    var currentExercisePlan: ExercisePlan by mutableStateOf(
-        exercisePlanProvider.nextSightReadingPlan(seed = 1L, difficulty = Difficulty.EASY)
-    )
+    var currentExercisePlan: ExercisePlan? by mutableStateOf(null)
         private set
 
     init {
@@ -50,10 +48,11 @@ class ScoreViewModel(
 
     private fun generateExercise(seed: Long, difficulty: Difficulty) {
         generationJob?.cancel()
-        currentExercisePlan = exercisePlanProvider.nextSightReadingPlan(
+        val exercisePlan = exercisePlanProvider.nextSightReadingPlan(
             seed = seed,
             difficulty = difficulty
         )
+        currentExercisePlan = exercisePlan
         generationJob = viewModelScope.launch {
             val musicXml = withContext(generationDispatcher) {
                 generateXml(seed, difficulty)

@@ -28,9 +28,25 @@ class ScoreViewModelTest {
             advanceUntilIdle()
 
             assertEquals("xml-1-EASY", viewModel.currentMusicXml)
-            assertEquals("plan-1-EASY", viewModel.currentExercisePlan.id)
-            assertEquals("Focus 1", viewModel.currentExercisePlan.coach.focusLabel)
-            assertEquals(Difficulty.EASY, viewModel.currentExercisePlan.difficulty)
+            val exercisePlan = checkNotNull(viewModel.currentExercisePlan)
+            assertEquals("plan-1-EASY", exercisePlan.id)
+            assertEquals("Focus 1", exercisePlan.coach.focusLabel)
+            assertEquals(Difficulty.EASY, exercisePlan.difficulty)
+        }
+
+    @Test
+    fun `initial state requests exercise plan once for easy seed one`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val providerRequests = mutableListOf<Pair<Long, Difficulty>>()
+
+            createViewModel(
+                exercisePlanProvider = ExercisePlanProvider { seed, difficulty ->
+                    providerRequests += seed to difficulty
+                    createExercisePlan(seed = seed, difficulty = difficulty)
+                }
+            )
+
+            assertEquals(listOf(1L to Difficulty.EASY), providerRequests)
         }
 
     @Test
@@ -43,8 +59,9 @@ class ScoreViewModelTest {
             advanceUntilIdle()
 
             assertEquals("xml-2-EASY", viewModel.currentMusicXml)
-            assertEquals("plan-2-EASY", viewModel.currentExercisePlan.id)
-            assertEquals("Focus 2", viewModel.currentExercisePlan.coach.focusLabel)
+            val exercisePlan = checkNotNull(viewModel.currentExercisePlan)
+            assertEquals("plan-2-EASY", exercisePlan.id)
+            assertEquals("Focus 2", exercisePlan.coach.focusLabel)
         }
 
     @Test
@@ -58,28 +75,35 @@ class ScoreViewModelTest {
             advanceUntilIdle()
 
             assertEquals("xml-2-HARD", viewModel.currentMusicXml)
-            assertEquals("plan-2-HARD", viewModel.currentExercisePlan.id)
-            assertEquals(Difficulty.HARD, viewModel.currentExercisePlan.difficulty)
+            val exercisePlan = checkNotNull(viewModel.currentExercisePlan)
+            assertEquals("plan-2-HARD", exercisePlan.id)
+            assertEquals(Difficulty.HARD, exercisePlan.difficulty)
         }
 
-    private fun createViewModel(): ScoreViewModel {
+    private fun createViewModel(
+        exercisePlanProvider: ExercisePlanProvider = ExercisePlanProvider { seed, difficulty ->
+            createExercisePlan(seed = seed, difficulty = difficulty)
+        },
+    ): ScoreViewModel {
         return ScoreViewModel(
-            exercisePlanProvider = ExercisePlanProvider { seed, difficulty ->
-                ExercisePlan(
-                    id = "plan-$seed-$difficulty",
-                    source = ExercisePlanSource.LOCAL,
-                    mode = ExercisePlanMode.SIGHT_READING,
-                    difficulty = difficulty,
-                    focus = "Focus $seed",
-                    coach = CoachContent(
-                        title = "Coach tip",
-                        focusLabel = "Focus $seed",
-                        body = "Body $seed",
-                    )
-                )
-            },
+            exercisePlanProvider = exercisePlanProvider,
             generateXml = { seed, difficulty -> "xml-$seed-$difficulty" },
             generationDispatcher = mainDispatcherRule.dispatcher,
+        )
+    }
+
+    private fun createExercisePlan(seed: Long, difficulty: Difficulty): ExercisePlan {
+        return ExercisePlan(
+            id = "plan-$seed-$difficulty",
+            source = ExercisePlanSource.LOCAL,
+            mode = ExercisePlanMode.SIGHT_READING,
+            difficulty = difficulty,
+            focus = "Focus $seed",
+            coach = CoachContent(
+                title = "Coach tip",
+                focusLabel = "Focus $seed",
+                body = "Body $seed",
+            )
         )
     }
 }
