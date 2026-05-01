@@ -1,4 +1,4 @@
-package com.clefrun.app.feature.sightreading
+package com.clefrun.app.ui.score
 
 import android.annotation.SuppressLint
 import android.net.Uri
@@ -97,7 +97,8 @@ private fun renderMusicXml(
     xmlString: String,
     showMeasureNumbers: Boolean
 ) {
-    val javascript = "window.renderMusicXml(${JSONObject.quote(xmlString)}, ${if (showMeasureNumbers) "true" else "false"});"
+    val javascript =
+        "window.renderMusicXml(${JSONObject.quote(xmlString)}, ${if (showMeasureNumbers) "true" else "false"});"
     webView.evaluateJavascript(javascript, null)
 }
 
