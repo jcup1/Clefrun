@@ -49,11 +49,33 @@ class LocalExercisePlanProviderTest {
     fun `maps targeted practice text to supported focus`() {
         val provider = LocalExercisePlanProvider()
 
+        assertEquals(ExerciseFocus.LEFT_HAND_STABILITY, provider.focusForText("left hand"))
         assertEquals(ExerciseFocus.LEFT_HAND_STABILITY, provider.focusForText("bass clef"))
         assertEquals(ExerciseFocus.ACCIDENTALS, provider.focusForText("sharps and flats"))
+        assertEquals(ExerciseFocus.ACCIDENTALS, provider.focusForText("accidentals"))
         assertEquals(ExerciseFocus.SMALL_LEAPS, provider.focusForText("small jumps"))
+        assertEquals(ExerciseFocus.SMALL_LEAPS, provider.focusForText("leaps"))
         assertEquals(ExerciseFocus.READ_AHEAD, provider.focusForText("chords"))
         assertEquals(ExerciseFocus.READ_AHEAD, provider.focusForText("something else"))
+    }
+
+    @Test
+    fun `does not match targeted practice substrings inside larger words`() {
+        val provider = LocalExercisePlanProvider()
+
+        assertEquals(ExerciseFocus.READ_AHEAD, provider.focusForText("cleft hand"))
+        assertEquals(ExerciseFocus.READ_AHEAD, provider.focusForText("flatware"))
+        assertEquals(ExerciseFocus.READ_AHEAD, provider.focusForText("jumper"))
+        assertEquals(ExerciseFocus.READ_AHEAD, provider.focusForText("jumping"))
+    }
+
+    @Test
+    fun `tokenizes targeted practice on non letter separators`() {
+        val provider = LocalExercisePlanProvider()
+
+        assertEquals(ExerciseFocus.LEFT_HAND_STABILITY, provider.focusForText("LEFT-hand"))
+        assertEquals(ExerciseFocus.ACCIDENTALS, provider.focusForText("sharp/flat"))
+        assertEquals(ExerciseFocus.SMALL_LEAPS, provider.focusForText("small,jumps"))
     }
 
     private fun LocalExercisePlanProvider.focusForText(text: String): ExerciseFocus {

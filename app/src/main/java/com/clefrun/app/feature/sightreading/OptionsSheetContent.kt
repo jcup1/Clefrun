@@ -22,8 +22,11 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusEvent
 import androidx.compose.ui.text.font.FontWeight
@@ -40,7 +43,6 @@ import com.clefrun.app.ui.theme.TextSecondary
 import com.clefrun.app.ui.theme.WarmAccent
 import com.clefrun.core.Difficulty
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 @Composable
 internal fun OptionsSheetContent(
@@ -55,7 +57,15 @@ internal fun OptionsSheetContent(
 ) {
     val scrollState = rememberScrollState()
     val bringIntoViewRequester = remember { BringIntoViewRequester() }
-    val scope = rememberCoroutineScope()
+    var isTargetedPracticeFocused by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isTargetedPracticeFocused) {
+        if (isTargetedPracticeFocused) {
+            onTargetedPracticeFocused()
+            delay(TargetedPracticeBringIntoViewDelayMillis)
+            bringIntoViewRequester.bringIntoView()
+        }
+    }
 
     Column(
         modifier = modifier
@@ -105,13 +115,7 @@ internal fun OptionsSheetContent(
                         .padding(top = 10.dp)
                         .bringIntoViewRequester(bringIntoViewRequester)
                         .onFocusEvent { focusState ->
-                            if (focusState.isFocused) {
-                                scope.launch {
-                                    onTargetedPracticeFocused()
-                                    delay(TargetedPracticeBringIntoViewDelayMillis)
-                                    bringIntoViewRequester.bringIntoView()
-                                }
-                            }
+                            isTargetedPracticeFocused = focusState.isFocused
                         },
                     label = { Text("Targeted practice") },
                     placeholder = { Text("e.g. left hand, accidentals, small jumps") },
