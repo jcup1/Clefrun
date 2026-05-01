@@ -1,6 +1,11 @@
 package com.clefrun.app.feature.sightreading
 
 import android.content.res.Configuration
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,15 +27,23 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
+import com.clefrun.app.coach.CoachContent
+import com.clefrun.app.ui.coach.CoachBubble
+import com.clefrun.app.ui.coach.CoachTipPopup
 import com.clefrun.app.ui.score.ScoreSurface
 import com.clefrun.app.ui.theme.AppBackground
 import com.clefrun.app.ui.theme.Charcoal
@@ -42,6 +55,7 @@ import kotlinx.coroutines.launch
 @Composable
 internal fun SightReadingScreen(
     musicXml: String,
+    coach: CoachContent,
     selectedDifficulty: Difficulty,
     onDifficultySelected: (Difficulty) -> Unit,
     onNewExercise: () -> Unit,
@@ -59,6 +73,7 @@ internal fun SightReadingScreen(
     } else {
         PortraitScoreScreen(
             musicXml = musicXml,
+            coach = coach,
             selectedDifficulty = selectedDifficulty,
             onDifficultySelected = onDifficultySelected,
             onRegenerate = onNewExercise,
@@ -71,12 +86,19 @@ internal fun SightReadingScreen(
 @Composable
 private fun PortraitScoreScreen(
     musicXml: String,
+    coach: CoachContent,
     selectedDifficulty: Difficulty,
     onDifficultySelected: (Difficulty) -> Unit,
     onRegenerate: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var tempo by remember { mutableFloatStateOf(0.55f) }
+    var isCoachTipVisible by rememberSaveable { mutableStateOf(false) }
+    var isCoachTipUnread by rememberSaveable { mutableStateOf(true) }
+
+    LaunchedEffect(coach) {
+        isCoachTipUnread = true
+    }
 
     val scaffoldState = rememberBottomSheetScaffoldState(
         bottomSheetState = rememberStandardBottomSheetState(
@@ -89,7 +111,7 @@ private fun PortraitScoreScreen(
     BottomSheetScaffold(
         modifier = modifier.fillMaxSize(),
         scaffoldState = scaffoldState,
-        sheetPeekHeight = 86.dp,
+        sheetPeekHeight = SightReadingBottomSheetPeekHeight,
         sheetContainerColor = Paper,
         sheetContentColor = Charcoal,
         sheetShadowElevation = 12.dp,
@@ -136,17 +158,63 @@ private fun PortraitScoreScreen(
                 }
             )
 
-            ScoreSurface(
-                musicXml = musicXml,
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
                     .padding(horizontal = 12.dp)
                     .padding(bottom = 12.dp)
-            )
+            ) {
+                ScoreSurface(
+                    musicXml = musicXml,
+                    modifier = Modifier.fillMaxSize()
+                )
+
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = isCoachTipVisible,
+                    enter = fadeIn(animationSpec = tween(durationMillis = 200)) +
+                        scaleIn(
+                            initialScale = 0.96f,
+                            transformOrigin = TransformOrigin(1f, 1f),
+                            animationSpec = tween(durationMillis = 200)
+                        ),
+                    exit = fadeOut(animationSpec = tween(durationMillis = 160)) +
+                        scaleOut(
+                            targetScale = 0.96f,
+                            transformOrigin = TransformOrigin(1f, 1f),
+                            animationSpec = tween(durationMillis = 160)
+                        ),
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 8.dp, bottom = 178.dp)
+                        .zIndex(1f)
+                ) {
+                    CoachTipPopup(
+                        coach = coach,
+                        onClose = { isCoachTipVisible = false }
+                    )
+                }
+
+                CoachBubble(
+                    showUnreadBadge = isCoachTipUnread,
+                    onClick = {
+                        val shouldOpen = !isCoachTipVisible
+                        isCoachTipVisible = shouldOpen
+                        if (shouldOpen) {
+                            isCoachTipUnread = false
+                        }
+                    },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 12.dp, bottom = 102.dp)
+                        .zIndex(2f)
+                )
+            }
         }
     }
 }
+
+private val SightReadingBottomSheetPeekHeight = 86.dp
 
 @Composable
 private fun LandscapeScoreScreen(

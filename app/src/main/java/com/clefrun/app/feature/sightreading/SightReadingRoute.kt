@@ -10,6 +10,7 @@ fun SightReadingRoute(
 ) {
     SightReadingScreen(
         musicXml = scoreViewModel.currentMusicXml,
+        coach = scoreViewModel.currentExercisePlan.coach,
         selectedDifficulty = scoreViewModel.selectedDifficulty,
         onDifficultySelected = scoreViewModel::onDifficultySelected,
         onNewExercise = scoreViewModel::onNewExercise,
