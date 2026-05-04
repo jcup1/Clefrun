@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.ksp)
@@ -26,13 +28,19 @@ android {
 
     buildTypes {
         debug {
-            buildConfigField("boolean", "REMOTE_EXERCISE_PLAN_ENABLED", "false")
-            buildConfigField("String", "REMOTE_EXERCISE_PLAN_BASE_URL", "\"http://10.0.2.2:8080\"")
+            val properties = Properties().apply {
+                load(rootProject.file("local.dev.properties").inputStream())
+            }
+            val remoteEnabled = properties.getProperty("remoteExercisePlanEnabled", "false").toBoolean()
+            val remoteBaseUrl = properties.getProperty("remoteExercisePlanBaseUrl", "http://localhost:8080")
+
+            buildConfigField("boolean", "REMOTE_EXERCISE_PLAN_ENABLED", remoteEnabled.toString())
+            buildConfigField("String", "REMOTE_EXERCISE_PLAN_BASE_URL", "\"$remoteBaseUrl\"")
         }
         release {
             isMinifyEnabled = false
             buildConfigField("boolean", "REMOTE_EXERCISE_PLAN_ENABLED", "false")
-            buildConfigField("String", "REMOTE_EXERCISE_PLAN_BASE_URL", "\"http://10.0.2.2:8080\"")
+            buildConfigField("String", "REMOTE_EXERCISE_PLAN_BASE_URL", "\"\"")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -62,6 +70,7 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.navigation3.runtime)
     implementation(libs.androidx.navigation3.ui)
+    implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.kotlinx.serialization.core)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.collections.immutable)

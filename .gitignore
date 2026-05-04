@@ -9,6 +9,7 @@
 .cxx
 local.properties
 .kotlin/
+local.dev.properties
 
 # Local AI agent instructions and skills
 AGENTS.md
