@@ -1,6 +1,6 @@
 package com.clefrun.app.feature.sightreading
 
-import com.clefrun.app.coach.ExercisePlan
+import com.clefrun.app.domain.exerciseplan.ExercisePlan
 import com.clefrun.core.MusicXmlWriter
 import com.clefrun.core.RuleBasedGenerator
 

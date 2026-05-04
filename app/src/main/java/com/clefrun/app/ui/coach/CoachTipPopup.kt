@@ -20,7 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.clefrun.app.coach.CoachContent
+import com.clefrun.app.domain.exerciseplan.CoachContent
 import com.clefrun.app.ui.theme.Charcoal
 import com.clefrun.app.ui.theme.Paper
 import com.clefrun.app.ui.theme.TextSecondary

@@ -6,10 +6,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.clefrun.app.coach.ExercisePlan
-import com.clefrun.app.coach.ExercisePlanRequest
-import com.clefrun.app.coach.ExercisePlanProvider
-import com.clefrun.app.coach.LocalExercisePlanProvider
+import com.clefrun.app.domain.exerciseplan.ExercisePlan
+import com.clefrun.app.domain.exerciseplan.ExercisePlanRequest
+import com.clefrun.app.domain.exerciseplan.ExercisePlanProvider
+import com.clefrun.app.data.exerciseplan.ExercisePlanProviderFactory
 import com.clefrun.core.Difficulty
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class ScoreViewModel(
-    private val exercisePlanProvider: ExercisePlanProvider = LocalExercisePlanProvider(),
+    private val exercisePlanProvider: ExercisePlanProvider = ExercisePlanProviderFactory.create(),
     private val generateXml: suspend (ExercisePlan) -> String = ::generateExerciseXml,
     private val generationDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
@@ -61,9 +61,10 @@ class ScoreViewModel(
             difficulty = difficulty,
             targetedPracticeText = targetedPracticeText.ifBlank { null }
         )
-        val exercisePlan = exercisePlanProvider.nextSightReadingPlan(request)
-        currentExercisePlan = exercisePlan
         generationJob = viewModelScope.launch {
+            // TODO: Add an explicit loading state so remote plan requests do not leave the score blank.
+            val exercisePlan = exercisePlanProvider.nextSightReadingPlan(request)
+            currentExercisePlan = exercisePlan
             val musicXml = withContext(generationDispatcher) {
                 generateXml(exercisePlan)
             }

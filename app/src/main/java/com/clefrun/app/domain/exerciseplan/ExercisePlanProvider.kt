@@ -1,14 +1,14 @@
-package com.clefrun.app.coach
+package com.clefrun.app.domain.exerciseplan
 
 import com.clefrun.core.ExerciseFocus
 import java.util.Locale
 
 fun interface ExercisePlanProvider {
-    fun nextSightReadingPlan(request: ExercisePlanRequest): ExercisePlan
+    suspend fun nextSightReadingPlan(request: ExercisePlanRequest): ExercisePlan
 }
 
 class LocalExercisePlanProvider : ExercisePlanProvider {
-    override fun nextSightReadingPlan(request: ExercisePlanRequest): ExercisePlan {
+    override suspend fun nextSightReadingPlan(request: ExercisePlanRequest): ExercisePlan {
         val focus = focusFor(request.targetedPracticeText)
         val tip = tipFor(focus)
         return ExercisePlan(
@@ -52,22 +52,22 @@ private fun tipFor(focus: ExerciseFocus): CoachContent {
     return when (focus) {
         ExerciseFocus.READ_AHEAD -> CoachContent(
             title = "Coach tip",
-            focusLabel = "Read ahead",
+            focusLabel = focus.toDisplayLabel(),
             body = "Look one beat ahead and keep the pulse steady through the full phrase.",
         )
         ExerciseFocus.LEFT_HAND_STABILITY -> CoachContent(
             title = "Coach tip",
-            focusLabel = "Left hand stability",
+            focusLabel = focus.toDisplayLabel(),
             body = "Keep the left hand steady and light while reading the right hand one beat ahead.",
         )
         ExerciseFocus.ACCIDENTALS -> CoachContent(
             title = "Coach tip",
-            focusLabel = "Accidentals",
+            focusLabel = focus.toDisplayLabel(),
             body = "Scan for altered notes before you start, then keep the pulse steady when they appear.",
         )
         ExerciseFocus.SMALL_LEAPS -> CoachContent(
             title = "Coach tip",
-            focusLabel = "Small leaps",
+            focusLabel = focus.toDisplayLabel(),
             body = "Read the interval shape before moving, and prepare the next hand position early.",
         )
     }

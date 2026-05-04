@@ -43,7 +43,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import com.clefrun.app.coach.CoachContent
+import com.clefrun.app.domain.exerciseplan.CoachContent
 import com.clefrun.app.ui.coach.CoachBubble
 import com.clefrun.app.ui.coach.CoachTipPopup
 import com.clefrun.app.ui.score.ScoreSurface
