@@ -6,21 +6,23 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.clefrun.app.di.GenerationDispatcher
 import com.clefrun.app.domain.exerciseplan.ExercisePlan
 import com.clefrun.app.domain.exerciseplan.ExercisePlanRequest
 import com.clefrun.app.domain.exerciseplan.ExercisePlanProvider
-import com.clefrun.app.data.exerciseplan.ExercisePlanProviderFactory
 import com.clefrun.core.Difficulty
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class ScoreViewModel(
-    private val exercisePlanProvider: ExercisePlanProvider = ExercisePlanProviderFactory.create(),
-    private val generateXml: suspend (ExercisePlan) -> String = ::generateExerciseXml,
-    private val generationDispatcher: CoroutineDispatcher = Dispatchers.Default,
+@HiltViewModel
+class ScoreViewModel @Inject constructor(
+    private val exercisePlanProvider: ExercisePlanProvider,
+    private val exerciseXmlGenerator: ExerciseXmlGenerator,
+    @param:GenerationDispatcher private val generationDispatcher: CoroutineDispatcher,
 ) : ViewModel() {
     private var nextSeed by mutableLongStateOf(2L)
     private var generationJob: Job? = null
@@ -66,7 +68,7 @@ class ScoreViewModel(
             val exercisePlan = exercisePlanProvider.nextSightReadingPlan(request)
             currentExercisePlan = exercisePlan
             val musicXml = withContext(generationDispatcher) {
-                generateXml(exercisePlan)
+                exerciseXmlGenerator.generate(exercisePlan)
             }
             currentMusicXml = musicXml
         }

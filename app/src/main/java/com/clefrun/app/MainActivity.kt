@@ -9,7 +9,9 @@ import com.clefrun.app.feature.scales.ScalesViewModel
 import com.clefrun.app.feature.sightreading.ScoreViewModel
 import com.clefrun.app.navigation.ClefRunNavGraph
 import com.clefrun.app.ui.theme.ClefrunTheme
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     private val scoreViewModel: ScoreViewModel by viewModels()
     private val scalesViewModel: ScalesViewModel by viewModels()

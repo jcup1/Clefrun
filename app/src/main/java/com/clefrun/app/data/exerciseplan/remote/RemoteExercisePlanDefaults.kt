@@ -33,17 +33,6 @@ internal fun defaultRemoteExercisePlanApi(
         .create(RemoteExercisePlanApi::class.java)
 }
 
-internal fun defaultRemoteExercisePlanProvider(
-    config: RemoteExercisePlanConfig,
-    client: OkHttpClient = defaultOkHttpClient(),
-    json: Json = defaultJson(),
-): RemoteExercisePlanProvider {
-    return RemoteExercisePlanProvider(
-        config = config,
-        api = defaultRemoteExercisePlanApi(config, client, json),
-    )
-}
-
 @OptIn(ExperimentalSerializationApi::class)
 internal fun defaultRetrofit(
     config: RemoteExercisePlanConfig,

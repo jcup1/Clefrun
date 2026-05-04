@@ -1,19 +1,21 @@
 package com.clefrun.app.feature.scales
 
-import android.util.Log
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.clefrun.app.di.AppLogger
+import com.clefrun.app.di.GenerationDispatcher
 import com.clefrun.core.PracticeMode
 import com.clefrun.core.PracticeTonic
 import com.clefrun.core.TechnicalPracticeDefaults
 import com.clefrun.core.supportedTechnicalPracticeModes
 import com.clefrun.core.supportedTechnicalPracticeTonics
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.toImmutableSet
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -44,10 +46,11 @@ sealed interface ScalesError {
     data object GenerationFailed : ScalesError
 }
 
-class ScalesViewModel(
-    private val generateXml: suspend (mode: PracticeMode, tonic: PracticeTonic) -> String = ::generateTechnicalPracticeXml,
-    private val generationDispatcher: CoroutineDispatcher = Dispatchers.Default,
-    private val logger: (String, Throwable?) -> Unit = { msg, t -> Log.e(TAG, msg, t) }
+@HiltViewModel
+class ScalesViewModel @Inject constructor(
+    private val technicalPracticeXmlGenerator: TechnicalPracticeXmlGenerator,
+    @param:GenerationDispatcher private val generationDispatcher: CoroutineDispatcher,
+    private val logger: AppLogger,
 ) : ViewModel() {
 
     private val selection = MutableStateFlow(
@@ -120,14 +123,14 @@ class ScalesViewModel(
             .flatMapLatest { selected ->
                 flow {
                     val xml = withContext(generationDispatcher) {
-                        generateXml(selected.mode, selected.tonic)
+                        technicalPracticeXmlGenerator.generate(selected.mode, selected.tonic)
                     }
                     emit(xml)
                 }
                     .map { Result.success(it) }
                     .catch { throwable ->
                         if (throwable is CancellationException) throw throwable
-                        logger("Failed to generate music XML", throwable)
+                        logger.error(TAG, "Failed to generate music XML", throwable)
                         emit(Result.failure(throwable))
                     }
             }

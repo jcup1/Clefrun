@@ -139,7 +139,9 @@ class ScoreViewModelTest {
     ): ScoreViewModel {
         return ScoreViewModel(
             exercisePlanProvider = exercisePlanProvider,
-            generateXml = { plan -> "xml-${plan.seed}-${plan.difficulty}-${plan.generatorFocus}" },
+            exerciseXmlGenerator = ExerciseXmlGenerator { plan ->
+                "xml-${plan.seed}-${plan.difficulty}-${plan.generatorFocus}"
+            },
             generationDispatcher = mainDispatcherRule.dispatcher,
         )
     }
