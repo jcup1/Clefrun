@@ -40,3 +40,20 @@ Expected result:
 - Targeted practice text affects only the next generated Sight Reading exercise and does not create chord-specific behavior.
 - The Scales screen opens directly into a practical notation-first workflow without extra setup clicks.
 - The technical-practice notation is stable and workbook-like, using curated quarter-note scale/arpeggio patterns, hidden filler spacing instead of visible placeholder rests, and controlled cadence spacing.
+
+## Optional Remote Exercise Plan Check
+
+Remote exercise plans are disabled by default. For local debug testing, temporarily enable `REMOTE_EXERCISE_PLAN_ENABLED` in the debug build config and rebuild.
+
+1. Start the ClefRun remote locally on port `8080`.
+2. Use `http://10.0.2.2:8080` from the Android emulator.
+3. For a physical device, temporarily override `REMOTE_EXERCISE_PLAN_BASE_URL` with the remote machine's LAN URL, for example `http://192.168.x.x:8080`.
+4. Launch the debug app, open Sight Reading, type `accidentals`, and tap `New`.
+5. Confirm the coach tip comes from the remote response.
+6. Stop the remote and tap `New` again.
+7. Confirm the app falls back to the local plan and does not crash.
+
+Expected result:
+- Debug builds keep remote plans disabled unless explicitly enabled for local testing.
+- Release behavior remains remote-disabled by default.
+- Missing, slow, or invalid remote responses fall back to local exercise plans.

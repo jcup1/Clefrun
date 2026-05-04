@@ -1,14 +1,15 @@
-package com.clefrun.app.coach
+package com.clefrun.app.domain.exerciseplan
 
 import com.clefrun.core.Difficulty
 import com.clefrun.core.ExerciseFocus
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class LocalExercisePlanProviderTest {
 
     @Test
-    fun `empty targeted practice uses read ahead plan`() {
+    fun `empty targeted practice uses read ahead plan`() = runTest {
         val provider = LocalExercisePlanProvider()
 
         val plan = provider.nextSightReadingPlan(
@@ -24,7 +25,7 @@ class LocalExercisePlanProviderTest {
     }
 
     @Test
-    fun `creates local sight reading plan for selected difficulty`() {
+    fun `creates local sight reading plan for selected difficulty`() = runTest {
         val provider = LocalExercisePlanProvider()
 
         val plan = provider.nextSightReadingPlan(
@@ -42,11 +43,11 @@ class LocalExercisePlanProviderTest {
         assertEquals(Difficulty.HARD, plan.difficulty)
         assertEquals(ExerciseFocus.LEFT_HAND_STABILITY, plan.generatorFocus)
         assertEquals(plan.coach.focusLabel, plan.focus)
-        assertEquals(emptyList<String>(), plan.constraints)
+        assertEquals(ExercisePlanConstraints(), plan.constraints)
     }
 
     @Test
-    fun `maps targeted practice text to supported focus`() {
+    fun `maps targeted practice text to supported focus`() = runTest {
         val provider = LocalExercisePlanProvider()
 
         assertEquals(ExerciseFocus.LEFT_HAND_STABILITY, provider.focusForText("left hand"))
@@ -60,7 +61,7 @@ class LocalExercisePlanProviderTest {
     }
 
     @Test
-    fun `does not match targeted practice substrings inside larger words`() {
+    fun `does not match targeted practice substrings inside larger words`() = runTest {
         val provider = LocalExercisePlanProvider()
 
         assertEquals(ExerciseFocus.READ_AHEAD, provider.focusForText("cleft hand"))
@@ -70,7 +71,7 @@ class LocalExercisePlanProviderTest {
     }
 
     @Test
-    fun `tokenizes targeted practice on non letter separators`() {
+    fun `tokenizes targeted practice on non letter separators`() = runTest {
         val provider = LocalExercisePlanProvider()
 
         assertEquals(ExerciseFocus.LEFT_HAND_STABILITY, provider.focusForText("LEFT-hand"))
@@ -78,7 +79,7 @@ class LocalExercisePlanProviderTest {
         assertEquals(ExerciseFocus.SMALL_LEAPS, provider.focusForText("small,jumps"))
     }
 
-    private fun LocalExercisePlanProvider.focusForText(text: String): ExerciseFocus {
+    private suspend fun LocalExercisePlanProvider.focusForText(text: String): ExerciseFocus {
         return nextSightReadingPlan(
             ExercisePlanRequest(
                 seed = 1L,

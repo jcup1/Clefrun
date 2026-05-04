@@ -1,4 +1,4 @@
-package com.clefrun.app.coach
+package com.clefrun.app.domain.exerciseplan
 
 import com.clefrun.core.Difficulty
 import com.clefrun.core.ExerciseFocus
@@ -17,9 +17,38 @@ data class ExercisePlan(
     val difficulty: Difficulty,
     val generatorFocus: ExerciseFocus,
     val focus: String,
-    val constraints: List<String> = emptyList(),
+    val constraints: ExercisePlanConstraints = ExercisePlanConstraints(),
     val coach: CoachContent,
 )
+
+data class ExercisePlanConstraints(
+    val accidentalDensity: AccidentalDensity? = null,
+    val rightHandMotion: RightHandMotion? = null,
+    val leftHandTexture: LeftHandTexture? = null,
+    val maxLeap: MaxLeap? = null,
+)
+
+enum class AccidentalDensity {
+    NONE,
+    LOW,
+    MEDIUM
+}
+
+enum class RightHandMotion {
+    MOSTLY_STEPWISE,
+    STEPWISE_WITH_SMALL_LEAPS
+}
+
+enum class LeftHandTexture {
+    SIMPLE_BASS,
+    STEADY_BASS
+}
+
+enum class MaxLeap {
+    SECOND,
+    THIRD,
+    FOURTH
+}
 
 data class CoachContent(
     val title: String,
@@ -29,7 +58,8 @@ data class CoachContent(
 )
 
 enum class ExercisePlanSource {
-    LOCAL
+    LOCAL,
+    REMOTE
 }
 
 enum class ExercisePlanMode {

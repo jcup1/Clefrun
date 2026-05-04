@@ -1,12 +1,12 @@
 package com.clefrun.app.feature.sightreading
 
 import com.clefrun.app.MainDispatcherRule
-import com.clefrun.app.coach.CoachContent
-import com.clefrun.app.coach.ExercisePlan
-import com.clefrun.app.coach.ExercisePlanMode
-import com.clefrun.app.coach.ExercisePlanProvider
-import com.clefrun.app.coach.ExercisePlanRequest
-import com.clefrun.app.coach.ExercisePlanSource
+import com.clefrun.app.domain.exerciseplan.CoachContent
+import com.clefrun.app.domain.exerciseplan.ExercisePlan
+import com.clefrun.app.domain.exerciseplan.ExercisePlanMode
+import com.clefrun.app.domain.exerciseplan.ExercisePlanProvider
+import com.clefrun.app.domain.exerciseplan.ExercisePlanRequest
+import com.clefrun.app.domain.exerciseplan.ExercisePlanSource
 import com.clefrun.core.Difficulty
 import com.clefrun.core.ExerciseFocus
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -47,6 +47,7 @@ class ScoreViewModelTest {
                     createExercisePlan(seed = request.seed, difficulty = request.difficulty)
                 }
             )
+            advanceUntilIdle()
 
             assertEquals(
                 listOf(
