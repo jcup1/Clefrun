@@ -8,14 +8,10 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import com.clefrun.app.feature.practicehub.PracticeHubRoute
 import com.clefrun.app.feature.scales.ScalesRoute
-import com.clefrun.app.feature.scales.ScalesViewModel
-import com.clefrun.app.feature.sightreading.ScoreViewModel
 import com.clefrun.app.feature.sightreading.SightReadingRoute
 
 @Composable
 fun ClefRunNavGraph(
-    scoreViewModel: ScoreViewModel,
-    scalesViewModel: ScalesViewModel,
     modifier: Modifier = Modifier,
 ) {
     val backStack = rememberNavBackStack(ClefRunDestination.PracticeHub)
@@ -43,14 +39,12 @@ fun ClefRunNavGraph(
 
                 ClefRunDestination.SightReading -> NavEntry(key) {
                     SightReadingRoute(
-                        scoreViewModel = scoreViewModel,
                         modifier = Modifier.fillMaxSize()
                     )
                 }
 
                 ClefRunDestination.ScalesArpeggios -> NavEntry(key) {
                     ScalesRoute(
-                        viewModel = scalesViewModel,
                         modifier = Modifier.fillMaxSize()
                     )
                 }
