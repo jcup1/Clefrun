@@ -149,11 +149,12 @@ class RemoteExercisePlanProviderTest {
     @Test
     fun `fallback provider returns local plan when remote is disabled`() = runTest {
         val provider = FallbackExercisePlanProvider(
-            primary = defaultRemoteExercisePlanProvider(
+            primary = RemoteExercisePlanProvider(
                 config = RemoteExercisePlanConfig(
                     enabled = false,
                     baseUrl = "http://10.0.2.2:8080"
-                )
+                ),
+                api = disabledRemoteApi()
             ),
             fallback = LocalExercisePlanProvider()
         )
@@ -190,15 +191,29 @@ class RemoteExercisePlanProviderTest {
     }
 
     private fun remoteProvider(server: MockWebServer): RemoteExercisePlanProvider {
-        return defaultRemoteExercisePlanProvider(
-            config = RemoteExercisePlanConfig(
-                enabled = true,
-                baseUrl = server.url("/").toString()
-            ),
-            json = Json {
-                ignoreUnknownKeys = true
-            }
+        val config = RemoteExercisePlanConfig(
+            enabled = true,
+            baseUrl = server.url("/").toString()
         )
+        return RemoteExercisePlanProvider(
+            config = config,
+            api = defaultRemoteExercisePlanApi(
+                config = config,
+                json = Json {
+                    ignoreUnknownKeys = true
+                }
+            )
+        )
+    }
+
+    private fun disabledRemoteApi(): RemoteExercisePlanApi {
+        return object : RemoteExercisePlanApi {
+            override suspend fun createExercisePlan(
+                request: RemoteExercisePlanRequestDto,
+            ): RemoteExercisePlanResponseDto {
+                error("Remote API should not be called when provider is disabled.")
+            }
+        }
     }
 
     private fun defaultRequest(): ExercisePlanRequest {

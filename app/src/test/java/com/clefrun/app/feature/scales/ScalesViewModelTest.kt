@@ -1,6 +1,7 @@
 package com.clefrun.app.feature.scales
 
 import com.clefrun.app.MainDispatcherRule
+import com.clefrun.app.di.AppLogger
 import com.clefrun.core.PracticeMode
 import com.clefrun.core.PracticeTonic
 import com.clefrun.core.TechnicalPracticeDefaults
@@ -144,9 +145,9 @@ class ScalesViewModelTest {
             { mode, tonic -> "xml-$mode-$tonic" },
     ): ScalesViewModel {
         return ScalesViewModel(
-            generateXml = generateXml,
+            technicalPracticeXmlGenerator = TechnicalPracticeXmlGenerator(generateXml),
             generationDispatcher = mainDispatcherRule.dispatcher,
-            logger = { _, _ -> }
+            logger = AppLogger { _, _, _ -> }
         )
     }
 }
