@@ -19,6 +19,7 @@ class LocalExercisePlanProvider : ExercisePlanProvider {
             difficulty = request.difficulty,
             generatorFocus = focus,
             focus = tip.focusLabel,
+            constraints = constraintsFor(focus),
             coach = tip,
         )
     }
@@ -47,6 +48,22 @@ private val leftHandTokens = setOf("left", "bass")
 private val accidentalTokens = setOf("accidental", "accidentals", "sharp", "sharps", "flat", "flats")
 private val smallLeapTokens = setOf("leap", "leaps", "jump", "jumps")
 private val chordTokens = setOf("chord", "chords")
+
+private fun constraintsFor(focus: ExerciseFocus): ExercisePlanConstraints {
+    return when (focus) {
+        ExerciseFocus.READ_AHEAD -> ExercisePlanConstraints()
+        ExerciseFocus.LEFT_HAND_STABILITY -> ExercisePlanConstraints(
+            leftHandTexture = LeftHandTexture.STEADY_BASS
+        )
+        ExerciseFocus.ACCIDENTALS -> ExercisePlanConstraints(
+            accidentalDensity = AccidentalDensity.MEDIUM
+        )
+        ExerciseFocus.SMALL_LEAPS -> ExercisePlanConstraints(
+            rightHandMotion = RightHandMotion.STEPWISE_WITH_SMALL_LEAPS,
+            maxLeap = MaxLeap.FOURTH
+        )
+    }
+}
 
 private fun tipFor(focus: ExerciseFocus): CoachContent {
     return when (focus) {

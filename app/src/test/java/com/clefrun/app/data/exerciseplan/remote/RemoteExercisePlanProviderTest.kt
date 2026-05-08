@@ -52,10 +52,10 @@ class RemoteExercisePlanProviderTest {
             assertEquals("Don't forget to cancel accidentals with a natural sign.", plan.coach.watchOut)
             assertEquals(
                 ExercisePlanConstraints(
-                    accidentalDensity = AccidentalDensity.LOW,
-                    rightHandMotion = RightHandMotion.MOSTLY_STEPWISE,
-                    leftHandTexture = LeftHandTexture.SIMPLE_BASS,
-                    maxLeap = MaxLeap.THIRD
+                    accidentalDensity = AccidentalDensity.MEDIUM,
+                    rightHandMotion = RightHandMotion.STEPWISE_WITH_SMALL_LEAPS,
+                    leftHandTexture = LeftHandTexture.STEADY_BASS,
+                    maxLeap = MaxLeap.FOURTH
                 ),
                 plan.constraints
             )
@@ -232,10 +232,10 @@ class RemoteExercisePlanProviderTest {
             {
               "focus": "ACCIDENTALS",
               "constraints": {
-                "accidentalDensity": "LOW",
-                "rightHandMotion": "MOSTLY_STEPWISE",
-                "leftHandTexture": "SIMPLE_BASS",
-                "maxLeap": "THIRD"
+                "accidentalDensity": "MEDIUM",
+                "rightHandMotion": "STEPWISE_WITH_SMALL_LEAPS",
+                "leftHandTexture": "STEADY_BASS",
+                "maxLeap": "FOURTH"
               },
               "coach": {
                 "title": "$title",
