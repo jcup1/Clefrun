@@ -92,6 +92,32 @@ class MusicXmlWriterTest {
         assertEquals(2, "<accidental>sharp</accidental>".toRegex().findAll(xml).count())
     }
 
+    @Test
+    fun multipleLeftHandNotesAreWrittenAsSeparateStaffTwoNotes() {
+        val xml = MusicXmlWriter.write(
+            Exercise(
+                bars = listOf(
+                    Bar(
+                        number = 1,
+                        chord = ChordFunction.I,
+                        rightHand = listOf(
+                            note(Step.C, 0, 4, Duration.WHOLE, beatStart = 1, staff = 1)
+                        ),
+                        leftHand = listOf(
+                            note(Step.C, 0, 3, Duration.QUARTER, beatStart = 1, staff = 2),
+                            note(Step.G, 0, 3, Duration.QUARTER, beatStart = 2, staff = 2),
+                            note(Step.C, 0, 3, Duration.HALF, beatStart = 3, staff = 2)
+                        )
+                    )
+                )
+            )
+        )
+
+        assertEquals(1, "<backup>".toRegex().findAll(xml).count())
+        assertEquals(3, "<staff>2</staff>".toRegex().findAll(xml).count())
+        assertEquals(4, "<note>".toRegex().findAll(xml).count())
+    }
+
     private fun exerciseWithBars(bars: List<Bar>): Exercise {
         return Exercise(bars = bars)
     }

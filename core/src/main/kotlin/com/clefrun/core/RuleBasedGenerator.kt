@@ -7,10 +7,13 @@ object RuleBasedGenerator {
     fun generate(
         seed: Long,
         difficulty: Difficulty = Difficulty.MEDIUM,
-        focus: ExerciseFocus = ExerciseFocus.READ_AHEAD
+        focus: ExerciseFocus = ExerciseFocus.READ_AHEAD,
+        constraints: GenerationConstraints = GenerationConstraints()
     ): Exercise {
         val random = Random(seed)
-        val profile = difficulty.profile().forFocus(focus)
+        val profile = difficulty.profile()
+            .forFocus(focus)
+            .forConstraints(constraints, focus)
         val chords = buildChordProgression(random)
 
         var previousRhMidi: Int? = null
@@ -70,7 +73,11 @@ private data class DifficultyProfile(
     val maxLeap: Int,
     val largeLeapWeightPenalty: Int,
     val repeatPenalty: Int,
-    val leftHandStyle: LeftHandStyle
+    val leftHandStyle: LeftHandStyle,
+    val rightHandMotion: GenerationRightHandMotion? = null,
+    val leftHandTexture: GenerationLeftHandTexture? = null,
+    val maxAccidentalsPerBar: Int = 1,
+    val strictMaxLeap: Boolean = false
 )
 
 private enum class LeftHandStyle {
@@ -147,6 +154,52 @@ private fun DifficultyProfile.forFocus(focus: ExerciseFocus): DifficultyProfile 
         )
         else -> this
     }
+}
+
+private fun DifficultyProfile.forConstraints(
+    constraints: GenerationConstraints,
+    focus: ExerciseFocus
+): DifficultyProfile {
+    val effectiveAccidentalDensity = constraints.accidentalDensity
+    val effectiveRightHandMotion = constraints.rightHandMotion ?: when (focus) {
+        ExerciseFocus.LEFT_HAND_STABILITY -> GenerationRightHandMotion.MOSTLY_STEPWISE
+        ExerciseFocus.SMALL_LEAPS -> GenerationRightHandMotion.STEPWISE_WITH_SMALL_LEAPS
+        else -> null
+    }
+    val effectiveLeftHandTexture = when (focus) {
+        ExerciseFocus.LEFT_HAND_STABILITY -> GenerationLeftHandTexture.STEADY_BASS
+        else -> constraints.leftHandTexture
+    }
+    val effectiveMaxLeap = constraints.maxLeap ?: when (focus) {
+        ExerciseFocus.SMALL_LEAPS -> GenerationMaxLeap.FOURTH
+        else -> null
+    }
+
+    val constrainedAccidentalProbability = when (constraints.accidentalDensity) {
+        GenerationAccidentalDensity.NONE -> 0.0
+        GenerationAccidentalDensity.LOW -> if (focus == ExerciseFocus.ACCIDENTALS) 0.38 else 0.24
+        GenerationAccidentalDensity.MEDIUM -> if (focus == ExerciseFocus.ACCIDENTALS) 0.96 else 0.76
+        null -> accidentalProbability
+    }
+
+    val constrainedMaxLeap = when (effectiveMaxLeap) {
+        GenerationMaxLeap.SECOND -> 2
+        GenerationMaxLeap.THIRD -> 4
+        GenerationMaxLeap.FOURTH -> 5
+        null -> maxLeap
+    }
+
+    return copy(
+        accidentalProbability = constrainedAccidentalProbability,
+        maxLeap = constrainedMaxLeap,
+        rightHandMotion = effectiveRightHandMotion,
+        leftHandTexture = effectiveLeftHandTexture,
+        maxAccidentalsPerBar = when (effectiveAccidentalDensity) {
+            GenerationAccidentalDensity.MEDIUM -> 2
+            else -> 1
+        },
+        strictMaxLeap = effectiveMaxLeap != null
+    )
 }
 
 private fun buildChordProgression(random: Random): List<ChordFunction> {
@@ -247,22 +300,33 @@ private fun maybeInsertChromaticApproach(
         if (event.beatStart != 2 && event.beatStart != 4) return@filter false
 
         val targetMidi = rightHand[index + 1].midi
+        val previousMidi = rightHand.getOrNull(index - 1)?.midi
         isChordTone(targetMidi, chord) &&
             isCmajor(targetMidi) &&
-            chromaticApproachCandidates(targetMidi, profile.rightHandRange).isNotEmpty()
+            chromaticApproachCandidates(targetMidi, profile.rightHandRange, previousMidi, profile).isNotEmpty()
     }
 
     if (eligibleIndices.isEmpty()) return
 
-    val index = eligibleIndices[random.nextInt(eligibleIndices.size)]
-    val targetMidi = rightHand[index + 1].midi
-    val candidates = chromaticApproachCandidates(targetMidi, profile.rightHandRange)
-    rightHand[index].midi = candidates[random.nextInt(candidates.size)]
+    val selectedIndices = eligibleIndices.shuffled(random).take(profile.maxAccidentalsPerBar)
+    selectedIndices.forEach { index ->
+        val targetMidi = rightHand[index + 1].midi
+        val previousMidi = rightHand.getOrNull(index - 1)?.midi
+        val candidates = chromaticApproachCandidates(targetMidi, profile.rightHandRange, previousMidi, profile)
+        rightHand[index].midi = candidates[random.nextInt(candidates.size)]
+    }
 }
 
-private fun chromaticApproachCandidates(targetMidi: Int, range: IntRange): List<Int> {
+private fun chromaticApproachCandidates(
+    targetMidi: Int,
+    range: IntRange,
+    previousMidi: Int?,
+    profile: DifficultyProfile
+): List<Int> {
     return listOf(targetMidi - 1, targetMidi + 1).filter { midi ->
-        midi in range && isAccidentalPitchClass(pitchClass(midi))
+        midi in range &&
+            isAccidentalPitchClass(pitchClass(midi)) &&
+            (!profile.strictMaxLeap || previousMidi == null || abs(midi - previousMidi) <= profile.maxLeap)
     }
 }
 
@@ -280,49 +344,50 @@ private fun generateLeftHand(
     val third = leftHandThirdMidi(chord)
     val fifth = leftHandFifthMidi(chord)
 
-    val pattern: List<Pair<Int, Duration>> = if (focus == ExerciseFocus.LEFT_HAND_STABILITY) {
-        listOf(
-            root to Duration.HALF,
-            fifth to Duration.HALF
-        )
-    } else when (profile.leftHandStyle) {
-        LeftHandStyle.EASY -> if (random.nextDouble() < 0.65) {
-            listOf(root to Duration.WHOLE)
-        } else {
-            listOf(
-                root to Duration.HALF,
-                (if (random.nextBoolean()) root else fifth) to Duration.HALF
-            )
-        }
-        LeftHandStyle.MEDIUM -> {
-            if (random.nextDouble() < 0.55) {
-                listOf(
-                    root to Duration.HALF,
-                    (if (random.nextBoolean()) fifth else root) to Duration.HALF
-                )
+    val pattern: List<Pair<Int, Duration>> = when (profile.leftHandTexture) {
+        GenerationLeftHandTexture.SIMPLE_BASS -> listOf(root to Duration.WHOLE)
+        GenerationLeftHandTexture.STEADY_BASS -> steadyBassPattern(random, root, fifth)
+        null -> if (focus == ExerciseFocus.LEFT_HAND_STABILITY) {
+            steadyBassPattern(random, root, fifth)
+        } else when (profile.leftHandStyle) {
+            LeftHandStyle.EASY -> if (random.nextDouble() < 0.65) {
+                listOf(root to Duration.WHOLE)
             } else {
                 listOf(
-                    root to Duration.QUARTER,
-                    fifth to Duration.QUARTER,
-                    third to Duration.QUARTER,
-                    fifth to Duration.QUARTER
+                    root to Duration.HALF,
+                    (if (random.nextBoolean()) root else fifth) to Duration.HALF
                 )
             }
-        }
-        LeftHandStyle.HARD -> {
-            if (random.nextDouble() < 0.30) {
-                listOf(
-                    root to Duration.HALF,
-                    fifth to Duration.QUARTER,
-                    third to Duration.QUARTER
-                )
-            } else {
-                listOf(
-                    root to Duration.QUARTER,
-                    fifth to Duration.QUARTER,
-                    third to Duration.QUARTER,
-                    (if (random.nextBoolean()) fifth else root) to Duration.QUARTER
-                )
+            LeftHandStyle.MEDIUM -> {
+                if (random.nextDouble() < 0.55) {
+                    listOf(
+                        root to Duration.HALF,
+                        (if (random.nextBoolean()) fifth else root) to Duration.HALF
+                    )
+                } else {
+                    listOf(
+                        root to Duration.QUARTER,
+                        fifth to Duration.QUARTER,
+                        third to Duration.QUARTER,
+                        fifth to Duration.QUARTER
+                    )
+                }
+            }
+            LeftHandStyle.HARD -> {
+                if (random.nextDouble() < 0.30) {
+                    listOf(
+                        root to Duration.HALF,
+                        fifth to Duration.QUARTER,
+                        third to Duration.QUARTER
+                    )
+                } else {
+                    listOf(
+                        root to Duration.QUARTER,
+                        fifth to Duration.QUARTER,
+                        third to Duration.QUARTER,
+                        (if (random.nextBoolean()) fifth else root) to Duration.QUARTER
+                    )
+                }
             }
         }
     }
@@ -338,6 +403,30 @@ private fun generateLeftHand(
         ).also {
             beatStart += duration.beats
         }
+    }
+}
+
+private fun steadyBassPattern(
+    random: Random,
+    root: Int,
+    fifth: Int
+): List<Pair<Int, Duration>> {
+    return when (random.nextInt(3)) {
+        0 -> listOf(
+            root to Duration.HALF,
+            fifth to Duration.HALF
+        )
+        1 -> listOf(
+            root to Duration.QUARTER,
+            fifth to Duration.QUARTER,
+            root to Duration.HALF
+        )
+        else -> listOf(
+            root to Duration.QUARTER,
+            fifth to Duration.QUARTER,
+            root to Duration.QUARTER,
+            fifth to Duration.QUARTER
+        )
     }
 }
 
@@ -367,7 +456,20 @@ private fun chooseRightHandMidi(
 
     val intervalAware = repeatAware.filter { midi ->
         abs(midi - previousMidi) <= profile.maxLeap
-    }.ifEmpty { repeatAware }
+    }.ifEmpty {
+        if (!profile.strictMaxLeap) {
+            repeatAware
+        } else {
+            val relaxedCandidates = profile.rightHandRange.filter { midi ->
+                isCmajor(midi) && abs(midi - previousMidi) <= profile.maxLeap
+            }
+            relaxedCandidates.filterNot { midi ->
+                recent.size >= 2 && recent.takeLast(2).all { it == midi }
+            }.ifEmpty { relaxedCandidates }
+        }
+    }.ifEmpty {
+        listOf(nearestMidi(previousMidi, profile.rightHandRange))
+    }
 
     val weighted = intervalAware
         .map { midi ->
@@ -384,6 +486,8 @@ private fun chooseRightHandMidi(
             if (diff >= 5) {
                 weight = (weight - profile.largeLeapWeightPenalty).coerceAtLeast(1)
             }
+
+            weight = weight.forMotion(diff, profile.rightHandMotion)
 
             if (focus == ExerciseFocus.SMALL_LEAPS) {
                 weight = when {
@@ -410,6 +514,28 @@ private fun chooseRightHandMidi(
         .flatMap { (midi, weight) -> List(weight) { midi } }
 
     return weighted[random.nextInt(weighted.size)]
+}
+
+private fun Int.forMotion(diff: Int, motion: GenerationRightHandMotion?): Int {
+    return when (motion) {
+        GenerationRightHandMotion.MOSTLY_STEPWISE -> when {
+            diff <= 2 -> this + 6
+            diff <= 4 -> 1
+            else -> 1
+        }
+        GenerationRightHandMotion.STEPWISE_WITH_SMALL_LEAPS -> when {
+            diff in 3..5 -> this + 12
+            diff > 5 -> 1
+            diff == 0 -> 1
+            diff <= 2 -> (this - 3).coerceAtLeast(2)
+            else -> this
+        }
+        null -> this
+    }
+}
+
+private fun nearestMidi(previousMidi: Int, range: IntRange): Int {
+    return previousMidi.coerceIn(range.first, range.last)
 }
 
 private fun isAccidentalPitchClass(pitchClass: Int): Boolean = pitchClass in setOf(1, 3, 6, 8, 10)

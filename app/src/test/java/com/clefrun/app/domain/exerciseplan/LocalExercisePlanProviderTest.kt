@@ -43,7 +43,38 @@ class LocalExercisePlanProviderTest {
         assertEquals(Difficulty.HARD, plan.difficulty)
         assertEquals(ExerciseFocus.LEFT_HAND_STABILITY, plan.generatorFocus)
         assertEquals(plan.coach.focusLabel, plan.focus)
-        assertEquals(ExercisePlanConstraints(), plan.constraints)
+        assertEquals(
+            ExercisePlanConstraints(
+                leftHandTexture = LeftHandTexture.STEADY_BASS
+            ),
+            plan.constraints
+        )
+    }
+
+    @Test
+    fun `local plans map focused practice to typed constraints`() = runTest {
+        val provider = LocalExercisePlanProvider()
+
+        assertEquals(
+            ExercisePlanConstraints(
+                leftHandTexture = LeftHandTexture.STEADY_BASS
+            ),
+            provider.constraintsForText("left hand")
+        )
+        assertEquals(
+            ExercisePlanConstraints(
+                accidentalDensity = AccidentalDensity.MEDIUM
+            ),
+            provider.constraintsForText("accidentals")
+        )
+        assertEquals(
+            ExercisePlanConstraints(
+                rightHandMotion = RightHandMotion.STEPWISE_WITH_SMALL_LEAPS,
+                maxLeap = MaxLeap.FOURTH
+            ),
+            provider.constraintsForText("small jumps")
+        )
+        assertEquals(ExercisePlanConstraints(), provider.constraintsForText("read ahead"))
     }
 
     @Test
@@ -87,5 +118,15 @@ class LocalExercisePlanProviderTest {
                 targetedPracticeText = text
             )
         ).generatorFocus
+    }
+
+    private suspend fun LocalExercisePlanProvider.constraintsForText(text: String): ExercisePlanConstraints {
+        return nextSightReadingPlan(
+            ExercisePlanRequest(
+                seed = 1L,
+                difficulty = Difficulty.EASY,
+                targetedPracticeText = text
+            )
+        ).constraints
     }
 }

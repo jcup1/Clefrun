@@ -135,7 +135,7 @@ class RuleBasedGeneratorTest {
     }
 
     @Test
-    fun leftHandStabilityFocusUsesSteadyHalfNotePattern() {
+    fun leftHandStabilityFocusUsesRegularRepeatedPattern() {
         val seeds = (1L..12L).toList()
 
         Difficulty.entries.forEach { difficulty ->
@@ -147,13 +147,49 @@ class RuleBasedGeneratorTest {
                 )
 
                 exercise.bars.forEach { bar ->
-                    assertEquals(listOf(Duration.HALF, Duration.HALF), bar.leftHand.map { it.duration })
+                    assertTrue(
+                        "LH focus must have at least two attacks per bar (seed=$seed, bar=${bar.number})",
+                        bar.leftHand.size >= 2
+                    )
+                    assertTrue(
+                        "LH focus must use a stable bass template (seed=$seed, bar=${bar.number})",
+                        bar.leftHand.map { it.duration } in SteadyBassDurationTemplates
+                    )
+                    val midis = bar.leftHand.map { toMidi(requireNotNull(it.pitch)) }
+                    assertStableBassPattern(midis)
                     assertTrue(
                         "LH must stay below RH (seed=$seed, bar=${bar.number})",
                         bar.leftHand.maxOf { toMidi(requireNotNull(it.pitch)) } <
                             bar.rightHand.minOf { toMidi(requireNotNull(it.pitch)) }
                     )
                 }
+            }
+        }
+    }
+
+    @Test
+    fun leftHandStabilityOverridesConflictingSimpleBassConstraint() {
+        val seeds = (1L..24L).toList()
+
+        seeds.forEach { seed ->
+            val exercise = RuleBasedGenerator.generate(
+                seed = seed,
+                difficulty = Difficulty.MEDIUM,
+                focus = ExerciseFocus.LEFT_HAND_STABILITY,
+                constraints = GenerationConstraints(
+                    leftHandTexture = GenerationLeftHandTexture.SIMPLE_BASS
+                )
+            )
+
+            exercise.bars.forEach { bar ->
+                assertTrue(
+                    "LH focus should not collapse to simple bass (seed=$seed, bar=${bar.number})",
+                    bar.leftHand.size >= 2
+                )
+                assertTrue(
+                    "LH focus must use a stable bass template despite conflicting constraint",
+                    bar.leftHand.map { it.duration } in SteadyBassDurationTemplates
+                )
             }
         }
     }
@@ -227,6 +263,248 @@ class RuleBasedGeneratorTest {
         assertTrue("Small leaps focus should increase RH intervals of a third to fourth", focusedSmallLeaps > defaultSmallLeaps)
     }
 
+    @Test
+    fun accidentalDensityNoneSuppressesAccidentals() {
+        val seeds = (1L..80L).toList()
+
+        val accidentalCount = seeds.sumOf { seed ->
+            countAccidentals(
+                RuleBasedGenerator.generate(
+                    seed = seed,
+                    difficulty = Difficulty.HARD,
+                    focus = ExerciseFocus.ACCIDENTALS,
+                    constraints = GenerationConstraints(
+                        accidentalDensity = GenerationAccidentalDensity.NONE
+                    )
+                )
+            )
+        }
+
+        assertEquals(0, accidentalCount)
+    }
+
+    @Test
+    fun accidentalsFocusWithMediumDensityCreatesVisibleAccidentals() {
+        val seeds = (1L..24L).toList()
+
+        val accidentalCount = seeds.sumOf { seed ->
+            countAccidentals(
+                RuleBasedGenerator.generate(
+                    seed = seed,
+                    difficulty = Difficulty.MEDIUM,
+                    focus = ExerciseFocus.ACCIDENTALS,
+                    constraints = GenerationConstraints(
+                        accidentalDensity = GenerationAccidentalDensity.MEDIUM
+                    )
+                )
+            )
+        }
+
+        assertTrue("Medium accidental density should create clearly visible altered RH notes", accidentalCount >= 24)
+    }
+
+    @Test
+    fun maxLeapConstraintCapsRightHandMelodicMovement() {
+        val cases = mapOf(
+            GenerationMaxLeap.SECOND to 2,
+            GenerationMaxLeap.THIRD to 4,
+            GenerationMaxLeap.FOURTH to 5
+        )
+
+        cases.forEach { (maxLeap, maxSemitones) ->
+            val seeds = (1L..40L).toList()
+            seeds.forEach { seed ->
+                val exercise = RuleBasedGenerator.generate(
+                    seed = seed,
+                    difficulty = Difficulty.HARD,
+                    constraints = GenerationConstraints(maxLeap = maxLeap)
+                )
+
+                rightHandIntervals(exercise).forEach { interval ->
+                    assertTrue(
+                        "RH interval $interval exceeds $maxSemitones semitones for $maxLeap (seed=$seed)",
+                        interval <= maxSemitones
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun rightHandMotionConstraintChangesIntervalProfile() {
+        val seeds = (1L..120L).toList()
+
+        val mostlyStepwiseIntervals = seeds.flatMap { seed ->
+            rightHandIntervals(
+                RuleBasedGenerator.generate(
+                    seed = seed,
+                    difficulty = Difficulty.MEDIUM,
+                    constraints = GenerationConstraints(
+                        rightHandMotion = GenerationRightHandMotion.MOSTLY_STEPWISE
+                    )
+                )
+            )
+        }
+        val smallLeapIntervals = seeds.flatMap { seed ->
+            rightHandIntervals(
+                RuleBasedGenerator.generate(
+                    seed = seed,
+                    difficulty = Difficulty.MEDIUM,
+                    constraints = GenerationConstraints(
+                        rightHandMotion = GenerationRightHandMotion.STEPWISE_WITH_SMALL_LEAPS
+                    )
+                )
+            )
+        }
+
+        val mostlyStepwiseCount = mostlyStepwiseIntervals.count { it <= 2 }
+        val controlledLeapCount = smallLeapIntervals.count { it in 3..5 }
+
+        assertTrue(
+            "Mostly stepwise should produce more steps than the small-leap profile",
+            mostlyStepwiseCount > smallLeapIntervals.count { it <= 2 }
+        )
+        assertTrue(
+            "Small-leap profile should produce more thirds/fourths than mostly stepwise",
+            controlledLeapCount > mostlyStepwiseIntervals.count { it in 3..5 }
+        )
+    }
+
+    @Test
+    fun leftHandTextureConstraintsSelectExpectedPatterns() {
+        val simpleExercise = RuleBasedGenerator.generate(
+            seed = 42L,
+            difficulty = Difficulty.HARD,
+            constraints = GenerationConstraints(
+                leftHandTexture = GenerationLeftHandTexture.SIMPLE_BASS
+            )
+        )
+        simpleExercise.bars.forEach { bar ->
+            assertEquals(listOf(Duration.WHOLE), bar.leftHand.map { it.duration })
+        }
+
+        val steadyExercise = RuleBasedGenerator.generate(
+            seed = 42L,
+            difficulty = Difficulty.HARD,
+            constraints = GenerationConstraints(
+                leftHandTexture = GenerationLeftHandTexture.STEADY_BASS
+            )
+        )
+        steadyExercise.bars.forEach { bar ->
+            assertTrue(
+                "Steady bass must have at least two attacks per bar",
+                bar.leftHand.size >= 2
+            )
+            assertTrue(
+                "Steady bass must use a stable duration template",
+                bar.leftHand.map { it.duration } in SteadyBassDurationTemplates
+            )
+            val midis = bar.leftHand.map { toMidi(requireNotNull(it.pitch)) }
+            assertStableBassPattern(midis)
+        }
+    }
+
+    @Test
+    fun constrainedExerciseStillWritesValidMusicXml() {
+        val exercise = RuleBasedGenerator.generate(
+            seed = 77L,
+            difficulty = Difficulty.MEDIUM,
+            focus = ExerciseFocus.ACCIDENTALS,
+            constraints = GenerationConstraints(
+                accidentalDensity = GenerationAccidentalDensity.MEDIUM,
+                rightHandMotion = GenerationRightHandMotion.STEPWISE_WITH_SMALL_LEAPS,
+                leftHandTexture = GenerationLeftHandTexture.STEADY_BASS,
+                maxLeap = GenerationMaxLeap.FOURTH
+            )
+        )
+
+        val xml = MusicXmlWriter.write(exercise)
+
+        assertTrue(xml.startsWith("<?xml"))
+        assertTrue(xml.contains("<score-partwise"))
+        assertEquals(8, "<measure number=\"".toRegex().findAll(xml).count())
+    }
+
+    @Test
+    fun defaultExerciseStaysLessChromaticAndJumpyThanFocusedPlans() {
+        val seeds = (1L..48L).toList()
+
+        val defaultExercises = seeds.map { seed ->
+            RuleBasedGenerator.generate(seed = seed, difficulty = Difficulty.MEDIUM)
+        }
+        val accidentalExercises = seeds.map { seed ->
+            RuleBasedGenerator.generate(
+                seed = seed,
+                difficulty = Difficulty.MEDIUM,
+                focus = ExerciseFocus.ACCIDENTALS,
+                constraints = GenerationConstraints(
+                    accidentalDensity = GenerationAccidentalDensity.MEDIUM
+                )
+            )
+        }
+        val smallLeapExercises = seeds.map { seed ->
+            RuleBasedGenerator.generate(
+                seed = seed,
+                difficulty = Difficulty.MEDIUM,
+                focus = ExerciseFocus.SMALL_LEAPS
+            )
+        }
+
+        assertTrue(
+            "Default plans should stay less chromatic than accidentals practice",
+            defaultExercises.sumOf { countAccidentals(it) } < accidentalExercises.sumOf { countAccidentals(it) }
+        )
+        assertTrue(
+            "Default plans should have fewer thirds/fourths than small-leap practice",
+            defaultExercises.sumOf { countSmallLeaps(it) } < smallLeapExercises.sumOf { countSmallLeaps(it) }
+        )
+    }
+
+    @Test
+    fun focusedPlansAreVisiblyDistinctFromReadAhead() {
+        val seeds = (1L..48L).toList()
+
+        val readAheadExercises = seeds.map { seed ->
+            RuleBasedGenerator.generate(seed = seed, difficulty = Difficulty.MEDIUM)
+        }
+        val leftHandExercises = seeds.map { seed ->
+            RuleBasedGenerator.generate(
+                seed = seed,
+                difficulty = Difficulty.MEDIUM,
+                focus = ExerciseFocus.LEFT_HAND_STABILITY
+            )
+        }
+        val smallLeapExercises = seeds.map { seed ->
+            RuleBasedGenerator.generate(
+                seed = seed,
+                difficulty = Difficulty.MEDIUM,
+                focus = ExerciseFocus.SMALL_LEAPS
+            )
+        }
+        val mostlyStepwiseExercises = seeds.map { seed ->
+            RuleBasedGenerator.generate(
+                seed = seed,
+                difficulty = Difficulty.MEDIUM,
+                constraints = GenerationConstraints(
+                    rightHandMotion = GenerationRightHandMotion.MOSTLY_STEPWISE
+                )
+            )
+        }
+
+        assertTrue(
+            "Left-hand focus should be more LH-active than read-ahead",
+            leftHandExercises.sumOf { countLeftHandAttacks(it) } > readAheadExercises.sumOf { countLeftHandAttacks(it) }
+        )
+        assertTrue(
+            "Small-leap focus should visibly prefer thirds/fourths over read-ahead",
+            smallLeapExercises.sumOf { countSmallLeaps(it) } > readAheadExercises.sumOf { countSmallLeaps(it) }
+        )
+        assertTrue(
+            "Small-leap focus should visibly prefer thirds/fourths over mostly-stepwise motion",
+            smallLeapExercises.sumOf { countSmallLeaps(it) } > mostlyStepwiseExercises.sumOf { countSmallLeaps(it) }
+        )
+    }
+
     private fun isChordTone(pitch: Pitch, chord: ChordFunction): Boolean {
         val pitchClass = ((stepToPitchClass(pitch.step) + pitch.alter) % 12 + 12) % 12
         val tones = when (chord) {
@@ -271,6 +549,28 @@ class RuleBasedGeneratorTest {
         }
     }
 
+    private fun countLeftHandAttacks(exercise: Exercise): Int {
+        return exercise.bars.sumOf { it.leftHand.size }
+    }
+
+    private fun assertStableBassPattern(midis: List<Int>) {
+        val distinctPitchCount = midis.toSet().size
+        assertTrue("LH stable pattern should use root-only or root/fifth motion", distinctPitchCount <= 2)
+        if (midis.size >= 3) {
+            assertEquals(midis[0], midis[2])
+        }
+        if (midis.size >= 4) {
+            assertEquals(midis[1], midis[3])
+        }
+    }
+
+    private fun rightHandIntervals(exercise: Exercise): List<Int> {
+        return exercise.bars
+            .flatMap { it.rightHand }
+            .map { toMidi(requireNotNull(it.pitch)) }
+            .zipWithNext { a, b -> abs(b - a) }
+    }
+
     private fun stepToPitchClass(step: Step): Int {
         return when (step) {
             Step.C -> 0
@@ -281,5 +581,13 @@ class RuleBasedGeneratorTest {
             Step.A -> 9
             Step.B -> 11
         }
+    }
+
+    private companion object {
+        val SteadyBassDurationTemplates = setOf(
+            listOf(Duration.HALF, Duration.HALF),
+            listOf(Duration.QUARTER, Duration.QUARTER, Duration.HALF),
+            listOf(Duration.QUARTER, Duration.QUARTER, Duration.QUARTER, Duration.QUARTER)
+        )
     }
 }

@@ -22,6 +22,35 @@ enum class ExerciseFocus {
     SMALL_LEAPS
 }
 
+data class GenerationConstraints(
+    val accidentalDensity: GenerationAccidentalDensity? = null,
+    val rightHandMotion: GenerationRightHandMotion? = null,
+    val leftHandTexture: GenerationLeftHandTexture? = null,
+    val maxLeap: GenerationMaxLeap? = null,
+)
+
+enum class GenerationAccidentalDensity {
+    NONE,
+    LOW,
+    MEDIUM
+}
+
+enum class GenerationRightHandMotion {
+    MOSTLY_STEPWISE,
+    STEPWISE_WITH_SMALL_LEAPS
+}
+
+enum class GenerationLeftHandTexture {
+    SIMPLE_BASS,
+    STEADY_BASS
+}
+
+enum class GenerationMaxLeap {
+    SECOND,
+    THIRD,
+    FOURTH
+}
+
 data class Bar(
     val number: Int,
     val chord: ChordFunction,
